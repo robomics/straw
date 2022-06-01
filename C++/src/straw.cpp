@@ -35,7 +35,7 @@
 #include <iterator>
 #include <algorithm>
 #include "zlib.h"
-#include "straw.h"
+#include "straw/straw.h"
 
 using namespace std;
 

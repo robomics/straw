@@ -1,12 +1,13 @@
-cmake_minimum_required(VERSION 3.13)  # CMake version check
-project(strawC)               # Create project "simple_example"
-set(CMAKE_CXX_STANDARD 14)            # Enable c++14 standard
-find_package(CURL REQUIRED)
-# g++ -std=c++0x -o straw main.cpp straw.cpp -lcurl -lz
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -lcurl -lz")
+cmake_minimum_required(VERSION 3.14) # CMake version check
+project(strawC) # Create project "simple_example"
+set(CMAKE_CXX_STANDARD 14) # Enable c++14 standard
 
-# Add main.cpp file of project root directory as source file
-set(SOURCE_FILES main.cpp straw.cpp)
-add_executable(straw ${SOURCE_FILES})
+option(BUILD_EXAMPLES "Build straw example(s)" OFF)
+add_library(straw_project_options INTERFACE)
+target_compile_features(straw_project_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 
-target_link_libraries(straw curl z)
+add_subdirectory(src)
+
+if(BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif()

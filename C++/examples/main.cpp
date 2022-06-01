@@ -21,9 +21,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 */
+#include "straw/straw.h"
 #include <iostream>
 #include <string>
-#include "straw.h"
 using namespace std;
 
 int main(int argc, char *argv[])
