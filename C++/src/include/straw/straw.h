@@ -28,6 +28,7 @@
 #include <set>
 #include <vector>
 #include <map>
+#include <string>
 
 // pointer structure for reading blocks or matrices, holds the size and position
 struct indexEntry {
@@ -52,14 +53,16 @@ struct chromosome {
 // this is for creating a stream from a byte array for ease of use
 // see https://stackoverflow.com/questions/41141175/how-to-implement-seekg-seekpos-on-an-in-memory-buffer
 struct membuf : std::streambuf {
-    membuf(char *begin, int32_t l) {
-        setg(begin, begin, begin + l);
+    membuf(char* first, char* last) {
+      setg(first, first, last);
     }
+
+    explicit membuf(std::string& buff) : membuf(&(*buff.begin()), &(*buff.end())) {}
 };
 
 struct memstream : virtual membuf, std::istream {
-    memstream(char *begin, int32_t l) :
-            membuf(begin, l),
+    explicit memstream(std::string& buff) :
+            membuf(buff),
             std::istream(static_cast<std::streambuf*>(this)) {
     }
 
@@ -78,12 +81,6 @@ struct memstream : virtual membuf, std::istream {
             setg(eback(), eback() + off, egptr());
         return gptr() - eback();
     }
-};
-
-// for holding data from URL call
-struct MemoryStruct {
-    char *memory;
-    size_t size;
 };
 
 std::map<int32_t, indexEntry>
