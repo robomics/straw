@@ -103,4 +103,10 @@ straw(const std::string& matrixType, const std::string& norm, const std::string&
 
 int64_t getNumRecordsForFile(const std::string& filename, int32_t binsize, bool interOnly);
 
+
+// reads the header, storing the positions of the normalization vectors and returning the masterIndexPosition pointer
+std::map<std::string, chromosome> readHeader(std::istream &fin, int64_t &masterIndexPosition, std::string &genomeID,
+                                             int32_t &numChromosomes, int32_t &version, int64_t &nviPosition,
+                                             int64_t &nviLength);
+
 #endif
