@@ -29,6 +29,8 @@
 #include <vector>
 #include <map>
 
+namespace straw {
+
 // pointer structure for reading blocks or matrices, holds the size and position
 struct indexEntry {
     int64_t size;
@@ -102,5 +104,7 @@ straw(const std::string& matrixType, const std::string& norm, const std::string&
       const std::string &unit, int32_t binsize);
 
 int64_t getNumRecordsForFile(const std::string& filename, int32_t binsize, bool interOnly);
+
+}
 
 #endif

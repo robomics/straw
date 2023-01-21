@@ -37,6 +37,8 @@
 #include "zlib.h"
 #include "straw.h"
 
+namespace straw {
+
 using namespace std;
 
 /*
@@ -1639,4 +1641,6 @@ int64_t getNumRecordsForFile(const string &fileName, int32_t binsize, bool inter
     }
 
     return totalNumRecords;
+}
+
 }

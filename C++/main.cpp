@@ -46,8 +46,8 @@ int main(int argc, char *argv[])
     string unit = argv[5 + offset];
     string size = argv[6 + offset];
     int32_t binsize = stoi(size);
-    vector<contactRecord> records;
-    records = straw(matrixType, norm, fname, chr1loc, chr2loc, unit, binsize);
+    vector<straw::contactRecord> records;
+    records = straw::straw(matrixType, norm, fname, chr1loc, chr2loc, unit, binsize);
     size_t length = records.size();
     for (int i = 0; i < length; i++) {
         printf("%d\t%d\t%.14g\n", records[i].binX, records[i].binY, records[i].counts);
