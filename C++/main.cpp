@@ -22,6 +22,7 @@
  THE SOFTWARE.
 */
 #include <iostream>
+#include <cstdint>
 #include <string>
 #include "straw.h"
 using namespace std;
@@ -45,7 +46,7 @@ int main(int argc, char *argv[])
     string chr2loc = argv[4 + offset];
     string unit = argv[5 + offset];
     string size = argv[6 + offset];
-    int32_t binsize = stoi(size);
+    std::int32_t binsize = stoi(size);
     vector<contactRecord> records;
     records = straw(matrixType, norm, fname, chr1loc, chr2loc, unit, binsize);
     size_t length = records.size();

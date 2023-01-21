@@ -24,6 +24,7 @@
 #ifndef STRAW_H
 #define STRAW_H
 
+#include <cstdint>
 #include <fstream>
 #include <set>
 #include <vector>
@@ -31,34 +32,34 @@
 
 // pointer structure for reading blocks or matrices, holds the size and position
 struct indexEntry {
-    int64_t size;
-    int64_t position;
+    std::int64_t size;
+    std::int64_t position;
 };
 
 // sparse matrixType entry
 struct contactRecord {
-  int32_t binX;
-  int32_t binY;
+  std::int32_t binX;
+  std::int32_t binY;
   float counts;
 };
 
 // chromosome
 struct chromosome {
     std::string name;
-    int32_t index;
-    int64_t length;
+    std::int32_t index;
+    std::int64_t length;
 };
 
 // this is for creating a stream from a byte array for ease of use
 // see https://stackoverflow.com/questions/41141175/how-to-implement-seekg-seekpos-on-an-in-memory-buffer
 struct membuf : std::streambuf {
-    membuf(char *begin, int32_t l) {
+    membuf(char *begin, std::int32_t l) {
         setg(begin, begin, begin + l);
     }
 };
 
 struct memstream : virtual membuf, std::istream {
-    memstream(char *begin, int32_t l) :
+    memstream(char *begin, std::int32_t l) :
             membuf(begin, l),
             std::istream(static_cast<std::streambuf*>(this)) {
     }
@@ -86,21 +87,21 @@ struct MemoryStruct {
     size_t size;
 };
 
-std::map<int32_t, indexEntry>
-readMatrixZoomData(std::istream &fin, const std::string &myunit, int32_t mybinsize, float &mySumCounts,
-                   int32_t &myBlockBinCount,
-                   int32_t &myBlockColumnCount, bool &found);
+std::map<std::int32_t, indexEntry>
+readMatrixZoomData(std::istream &fin, const std::string &myunit, std::int32_t mybinsize, float &mySumCounts,
+                   std::int32_t &myBlockBinCount,
+                   std::int32_t &myBlockColumnCount, bool &found);
 
-std::map<int32_t, indexEntry>
-readMatrix(std::istream &fin, int32_t myFilePosition, std::string unit, int32_t resolution, float &mySumCounts,
-           int32_t &myBlockBinCount, int32_t &myBlockColumnCount);
+std::map<std::int32_t, indexEntry>
+readMatrix(std::istream &fin, std::int32_t myFilePosition, std::string unit, std::int32_t resolution, float &mySumCounts,
+           std::int32_t &myBlockBinCount, std::int32_t &myBlockColumnCount);
 
 std::vector<double> readNormalizationVector(std::istream &fin, indexEntry entry);
 
 std::vector<contactRecord>
 straw(const std::string& matrixType, const std::string& norm, const std::string& fname, const std::string& chr1loc, const std::string& chr2loc,
-      const std::string &unit, int32_t binsize);
+      const std::string &unit, std::int32_t binsize);
 
-int64_t getNumRecordsForFile(const std::string& filename, int32_t binsize, bool interOnly);
+std::int64_t getNumRecordsForFile(const std::string& filename, std::int32_t binsize, bool interOnly);
 
 #endif
