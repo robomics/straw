@@ -3,5 +3,5 @@ set(SOURCE_FILES examples/main.cpp src/straw.cpp)
 add_executable(example example.cpp)
 target_link_libraries(
   example
-  PRIVATE straw_project_options
+  PRIVATE straw_project_options straw_project_warnings
   PUBLIC straw)

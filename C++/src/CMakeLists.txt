@@ -11,5 +11,5 @@ target_sources(
 target_include_directories(straw PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(
   straw
-  PRIVATE straw_project_options
+  PRIVATE straw_project_options straw_project_warnings
   PUBLIC CURL::libcurl ZLIB::ZLIB)

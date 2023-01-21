@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 14) # Enable c++14 standard
 option(BUILD_EXAMPLES "Build straw example(s)" OFF)
 add_library(straw_project_options INTERFACE)
 target_compile_features(straw_project_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 
 add_subdirectory(src)
 
