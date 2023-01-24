@@ -21,21 +21,23 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 */
-#include "straw/straw.h"
 #include <iostream>
 #include <string>
+
+#include "straw/straw.h"
 using namespace std;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     if (argc != 7 && argc != 8) {
         cerr << "Incorrect arguments" << endl;
-        cerr << "Usage: straw [observed/oe/expected] <NONE/VC/VC_SQRT/KR> <hicFile(s)> <chr1>[:x1:x2] <chr2>[:y1:y2] <BP/FRAG> <binsize>" << endl;
+        cerr << "Usage: straw [observed/oe/expected] <NONE/VC/VC_SQRT/KR> <hicFile(s)> "
+                "<chr1>[:x1:x2] <chr2>[:y1:y2] <BP/FRAG> <binsize>"
+             << endl;
         exit(1);
     }
     int offset = 0;
     string matrixType = "observed";
-    if(argc == 8){
+    if (argc == 8) {
         offset = 1;
         matrixType = argv[1];
     }
