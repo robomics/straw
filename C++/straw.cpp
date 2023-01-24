@@ -58,7 +58,7 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
     mem->memory = static_cast<char *>(realloc(mem->memory, mem->size + realsize + 1));
     if (mem->memory == nullptr) {
         /* out of memory! */
-        printf("not enough memory (realloc returned NULL)\n");
+        fprintf(stderr, "not enough memory (realloc returned NULL)\n");
         return 0;
     }
 
@@ -80,8 +80,7 @@ char *getData(CURL *curl, int64_t position, int64_t chunksize) {
     curl_easy_setopt(curl, CURLOPT_RANGE, oss.str().c_str());
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
-        fprintf(stderr, "curl_easy_perform() failed: %s\n",
-                curl_easy_strerror(res));
+        throw std::runtime_error("curl_easy_perform() failed: " + std::string(curl_easy_strerror(res)));
     }
 
     return chunk.memory;
@@ -144,8 +143,7 @@ static CURL *initCURL(const char *url) {
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "straw");
     } else {
-        cerr << "Unable to initialize curl " << endl;
-        exit(2);
+        throw std::runtime_error("Unable to initialize curl");
     }
     return curl;
 }
@@ -162,14 +160,12 @@ public:
             isHttp = true;
             curl = initCURL(fileName.c_str());
             if (!curl) {
-                cerr << "URL " << fileName << " cannot be opened for reading" << endl;
-                exit(3);
+              throw std::runtime_error("URL " + fileName + " cannot be opened for reading");
             }
         } else {
             fin.open(fileName, fstream::in | fstream::binary);
             if (!fin) {
-                cerr << "File " << fileName << " cannot be opened for reading" << endl;
-                exit(4);
+              throw std::runtime_error("File " + fileName + " cannot be opened for reading");
             }
         }
     }
@@ -208,16 +204,12 @@ map<string, chromosome> readHeader(istream &fin, int64_t &masterIndexPosition, s
                                    int64_t &nviLength) {
     map<string, chromosome> chromosomeMap;
     if (!readMagicString(fin)) {
-        cerr << "Hi-C magic string is missing, does not appear to be a hic file" << endl;
-        masterIndexPosition = -1;
-        return chromosomeMap;
+        throw std::runtime_error("Hi-C magic string is missing, does not appear to be a hic file");
     }
 
     version = readInt32FromFile(fin);
     if (version < 6) {
-        cerr << "Version " << version << " no longer supported" << endl;
-        masterIndexPosition = -1;
-        return chromosomeMap;
+        throw std::runtime_error("Version " + std::to_string(version) + " no longer supported");
     }
     masterIndexPosition = readInt64FromFile(fin);
     getline(fin, genomeID, '\0');
@@ -447,9 +439,9 @@ int64_t readStringFromURL(istream &fin, string &basicString) {
 // norm, unit (BP or FRAG) and resolution or binsize, and sets the file
 // position of the matrix and the normalization vectors for those chromosomes
 // at the given normalization and resolution
-bool readFooterURL(CURL *curl, int64_t master, int32_t version, int32_t c1, int32_t c2, const string &matrixType,
-                const string &norm, const string &unit, int32_t resolution, int64_t &myFilePos,
-                indexEntry &c1NormEntry, indexEntry &c2NormEntry, vector<double> &expectedValues) {
+void readFooterURL(CURL *curl, int64_t master, int32_t version, int32_t c1, int32_t c2, const string &matrixType,
+                   const string &norm, const string &unit, int32_t resolution, int64_t &myFilePos,
+                   indexEntry &c1NormEntry, indexEntry &c2NormEntry, vector<double> &expectedValues) {
 
     int64_t currentPointer = master;
 
@@ -491,13 +483,12 @@ bool readFooterURL(CURL *curl, int64_t master, int32_t version, int32_t c1, int3
     }
     delete buffer;
     if (!found) {
-        cerr << "Remote file doesn't have the given chr_chr map " << key << endl;
-        return false;
+        throw std::runtime_error("Remote file doesn't have the given chr_chr map " + key);
     }
 
     if ((matrixType == "observed" && norm == "NONE") ||
         ((matrixType == "oe" || matrixType == "expected") && norm == "NONE" && c1 != c2))
-        return true; // no need to read norm vector index
+        return; // no need to read norm vector index
 
     // read in and ignore expected value maps; don't store; reading these to
     // get to norm vector index
@@ -545,10 +536,9 @@ bool readFooterURL(CURL *curl, int64_t master, int32_t version, int32_t c1, int3
 
     if (c1 == c2 && (matrixType == "oe" || matrixType == "expected") && norm == "NONE") {
         if (expectedValues.empty()) {
-            cerr << "Remote file did not contain expected values vectors at " << resolution << " " << unit << endl;
-            return false;
+            throw std::runtime_error("Remote file did not contain expected values vectors at " + std::to_string(resolution) + " " + unit);
         }
-        return true;
+        return;
     }
 
     buffer = getData(curl, currentPointer, 100);
@@ -593,8 +583,7 @@ bool readFooterURL(CURL *curl, int64_t master, int32_t version, int32_t c1, int3
 
     if (c1 == c2 && (matrixType == "oe" || matrixType == "expected") && norm != "NONE") {
         if (expectedValues.empty()) {
-            cerr << "Remote file did not contain normalized expected values vectors at " << resolution << " " << unit << endl;
-            return false;
+            throw std::runtime_error("Remote file did not contain normalized expected values vectors at " + std::to_string(resolution) + " " + unit);
         }
     }
 
@@ -645,13 +634,12 @@ bool readFooterURL(CURL *curl, int64_t master, int32_t version, int32_t c1, int3
     }
     delete buffer;
     if (!found1 || !found2) {
-        cerr << "Remote file did not contain " << norm << " normalization vectors for one or both chromosomes at "
-             << resolution << " " << unit << endl;
+        throw std::runtime_error("Remote file did not contain " + norm + " normalization vectors for one or both chromosomes at "
+              + std::to_string(resolution) + " " + unit);
     }
-    return true;
 }
 
-bool readFooter(istream &fin, int64_t master, int32_t version, int32_t c1, int32_t c2, const string &matrixType,
+void readFooter(istream &fin, int64_t master, int32_t version, int32_t c1, int32_t c2, const string &matrixType,
                 const string &norm, const string &unit, int32_t resolution, int64_t &myFilePos,
                 indexEntry &c1NormEntry, indexEntry &c2NormEntry, vector<double> &expectedValues) {
 
@@ -678,13 +666,12 @@ bool readFooter(istream &fin, int64_t master, int32_t version, int32_t c1, int32
         }
     }
     if (!found) {
-        cerr << "File doesn't have the given chr_chr map " << key << endl;
-        return false;
+        throw std::runtime_error("File doesn't have the given chr_chr map " +  key);
     }
 
     if ((matrixType == "observed" && norm == "NONE") ||
         ((matrixType == "oe" || matrixType == "expected") && norm == "NONE" && c1 != c2))
-        return true; // no need to read norm vector index
+        return; // no need to read norm vector index
 
     // read in and ignore expected value maps; don't store; reading these to
     // get to norm vector index
@@ -709,10 +696,9 @@ bool readFooter(istream &fin, int64_t master, int32_t version, int32_t c1, int32
 
     if (c1 == c2 && (matrixType == "oe" || matrixType == "expected") && norm == "NONE") {
         if (expectedValues.empty()) {
-            cerr << "File did not contain expected values vectors at " << resolution << " " << unit << endl;
-            return false;
+            throw std::runtime_error("File did not contain expected values vectors at " + std::to_string(resolution) + " " + unit);
         }
-        return true;
+        return;
     }
 
     nExpectedValues = readInt32FromFile(fin);
@@ -736,8 +722,7 @@ bool readFooter(istream &fin, int64_t master, int32_t version, int32_t c1, int32
 
     if (c1 == c2 && (matrixType == "oe" || matrixType == "expected") && norm != "NONE") {
         if (expectedValues.empty()) {
-            cerr << "File did not contain normalized expected values vectors at " << resolution << " " << unit << endl;
-            return false;
+            throw std::runtime_error("File did not contain normalized expected values vectors at " +  std::to_string(resolution) +  " " + unit);
         }
     }
 
@@ -772,10 +757,9 @@ bool readFooter(istream &fin, int64_t master, int32_t version, int32_t c1, int32
         }
     }
     if (!found1 || !found2) {
-        cerr << "File did not contain " << norm << " normalization vectors for one or both chromosomes at "
-             << resolution << " " << unit << endl;
+        throw std::runtime_error("File did not contain " + norm + " normalization vectors for one or both chromosomes at "
+             + std::to_string(resolution) + " " + unit);
     }
-    return true;
 }
 
 indexEntry readIndexEntry(istream &fin) {
@@ -843,8 +827,7 @@ map<int32_t, indexEntry> readMatrixZoomDataHttp(CURL *curl, int64_t &myFilePosit
     } else if (first[0] == 'F') {
         header_size += 5;
     } else {
-        cerr << "Unit not understood" << endl;
-        return blockMap;
+        throw std::runtime_error("Unit not understood");
     }
     delete first;
     char *buffer = getData(curl, myFilePosition, header_size);
@@ -890,7 +873,7 @@ map<int32_t, indexEntry> readMatrixHttp(CURL *curl, int64_t myFilePosition, cons
         i++;
     }
     if (!found) {
-        cerr << "Error finding block data" << endl;
+        throw std::runtime_error("Error finding block data");
     }
     return blockMap;
 }
@@ -912,7 +895,7 @@ map<int32_t, indexEntry> readMatrix(istream &fin, int64_t myFilePosition, const 
         i++;
     }
     if (!found) {
-        cerr << "Error finding block data" << endl;
+        throw std::runtime_error("Error finding block data");
     }
     return blockMap;
 }
@@ -1186,7 +1169,6 @@ public:
     string fileName;
     int64_t myFilePos = 0LL;
     vector<double> expectedValues;
-    bool foundFooter = false;
     vector<double> c1Norm;
     vector<double> c2Norm;
     int32_t c1 = 0;
@@ -1231,21 +1213,18 @@ public:
         indexEntry c1NormEntry{}, c2NormEntry{};
 
         if (stream->isHttp) {
-            foundFooter = readFooterURL(stream->curl, master, version, c1, c2, matrixType, norm, unit,
-                                     resolution,
-                                     myFilePos,
-                                     c1NormEntry, c2NormEntry, expectedValues);
+            readFooterURL(stream->curl, master, version, c1, c2, matrixType, norm, unit,
+                          resolution,
+                          myFilePos,
+                          c1NormEntry, c2NormEntry, expectedValues);
         } else {
             stream->fin.seekg(master, ios::beg);
-            foundFooter = readFooter(stream->fin, master, version, c1, c2, matrixType, norm,
-                                     unit,
-                                     resolution, myFilePos,
-                                     c1NormEntry, c2NormEntry, expectedValues);
+            readFooter(stream->fin, master, version, c1, c2, matrixType, norm,
+                       unit,
+                      resolution, myFilePos,
+                      c1NormEntry, c2NormEntry, expectedValues);
         }
 
-        if (!foundFooter) {
-            return;
-        }
         stream->close();
 
         if (norm != "NONE") {
@@ -1303,10 +1282,8 @@ public:
         } else if (index == c2) {
             return c2Norm;
         }
-        cerr << "Invalid index provided: " << index << endl;
-        cerr << "Should be either " << c1 << " or " << c2 << endl;
-        vector<double> v;
-        return v;
+        throw std::runtime_error("Invalid index provided: " + std::to_string(index) + "\nShould be either "
+                                 + std::to_string(c1) + " or " + std::to_string(c2));
     }
 
     vector<double> getExpectedValues() {
@@ -1314,10 +1291,6 @@ public:
     }
 
     vector<contactRecord> getRecords(int64_t gx0, int64_t gx1, int64_t gy0, int64_t gy1) {
-        if (!foundFooter) {
-            vector<contactRecord> v;
-            return v;
-        }
         int64_t origRegionIndices[] = {gx0, gx1, gy0, gy1};
         int64_t regionIndices[4];
         convertGenomeToBinPos(origRegionIndices, regionIndices, resolution);
@@ -1427,9 +1400,6 @@ public:
     }
 
     int64_t getNumberOfTotalRecords() {
-        if (!foundFooter) {
-            return 0;
-        }
         int64_t regionIndices[4] = {0, numBins1, 0, numBins2};
         set<int32_t> blockNumbers = getBlockNumbers(regionIndices);
         int64_t total = 0;
@@ -1500,8 +1470,7 @@ public:
             ifstream fin;
             fin.open(fileName, fstream::in | fstream::binary);
             if (!fin) {
-                cerr << "File " << fileName << " cannot be opened for reading" << endl;
-                exit(6);
+                throw std::runtime_error("File " + fileName + " cannot be opened for reading");
             }
             chromosomeMap = readHeader(fin, master, genomeID, numChromosomes,
                                        version, nviPosition, nviLength);
@@ -1551,8 +1520,7 @@ void parsePositions(const string &chrLoc, string &chrom, int64_t &pos1, int64_t 
     stringstream ss(chrLoc);
     getline(ss, chrom, ':');
     if (map.count(chrom) == 0) {
-        cerr << chrom << " not found in the file." << endl;
-        exit(7);
+        throw std::runtime_error(chrom + " not found in the file");
     }
 
     if (getline(ss, x, ':') && getline(ss, y, ':')) {
@@ -1567,11 +1535,7 @@ void parsePositions(const string &chrLoc, string &chrom, int64_t &pos1, int64_t 
 vector<contactRecord> straw(const string &matrixType, const string &norm, const string &fileName, const string &chr1loc,
                             const string &chr2loc, const string &unit, int32_t binsize) {
     if (!(unit == "BP" || unit == "FRAG")) {
-        cerr << "Norm specified incorrectly, must be one of <BP/FRAG>" << endl;
-        cerr << "Usage: straw [observed/oe/expected] <NONE/VC/VC_SQRT/KR> <hicFile(s)> <chr1>[:x1:x2] <chr2>[:y1:y2] <BP/FRAG> <binsize>"
-             << endl;
-        vector<contactRecord> v;
-        return v;
+        throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
     }
 
     HiCFile *hiCFile = new HiCFile(fileName);
@@ -1592,11 +1556,7 @@ vector<contactRecord> straw(const string &matrixType, const string &norm, const 
 vector<vector<float> > strawAsMatrix(const string &matrixType, const string &norm, const string &fileName, const string &chr1loc,
                    const string &chr2loc, const string &unit, int32_t binsize) {
     if (!(unit == "BP" || unit == "FRAG")) {
-        cerr << "Norm specified incorrectly, must be one of <BP/FRAG>" << endl;
-        cerr << "Usage: straw [observed/oe/expected] <NONE/VC/VC_SQRT/KR> <hicFile(s)> <chr1>[:x1:x2] <chr2>[:y1:y2] <BP/FRAG> <binsize>"
-             << endl;
-        vector<vector<float> > res = vector<vector<float> >(1, vector<float>(1, 0));
-        return res;
+      throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
     }
 
     HiCFile *hiCFile = new HiCFile(fileName);
