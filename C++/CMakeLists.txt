@@ -9,5 +9,5 @@ target_compile_features(straw_project_options INTERFACE cxx_std_${CMAKE_CXX_STAN
 add_subdirectory(src)
 
 if(BUILD_EXAMPLES)
-  add_subdirectory(examples)
+    add_subdirectory(examples)
 endif()
