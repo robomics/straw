@@ -36,8 +36,8 @@
 #include <iterator>
 #include <algorithm>
 #include "zlib.h"
-#include "straw.h"
 #include <memory>
+#include "straw/straw.h"
 
 using namespace std;
 
