@@ -29,6 +29,7 @@
 #include <vector>
 #include <map>
 
+
 // pointer structure for reading blocks or matrices, holds the size and position
 struct indexEntry {
     int64_t size;

@@ -37,8 +37,11 @@
 #include <algorithm>
 #include "zlib.h"
 #include "straw.h"
+#include <memory>
 
 using namespace std;
+
+using CURL_ptr = std::unique_ptr<CURL, decltype(&curl_easy_cleanup)>;
 
 /*
   Straw: fast C++ implementation of dump. Not as fully featured as the
@@ -49,6 +52,10 @@ using namespace std;
 
   Usage: straw [observed/oe/expected] <NONE/VC/VC_SQRT/KR> <hicFile(s)> <chr1>[:x1:x2] <chr2>[:y1:y2] <BP/FRAG> <binsize>
  */
+
+static bool StartsWith(const std::string& s, const std::string& prefix) {
+  return s.find(prefix) == 0;
+}
 
 // callback for libcurl. data written to this buffer
 static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
@@ -68,18 +75,19 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
 }
 
 // get a buffer that can be used as an input stream from the URL
-void getData(CURL *curl, int64_t position, int64_t chunksize, std::string& buffer) {
+void getData(CURL_ptr& curl, int64_t position, int64_t chunksize, std::string& buffer) {
+    assert(curl);
     const auto oss = std::to_string(position) + "-" + std::to_string(position + chunksize);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, reinterpret_cast<void *>(&buffer));
-    curl_easy_setopt(curl, CURLOPT_RANGE, oss.c_str());
-    CURLcode res = curl_easy_perform(curl);
+    curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, reinterpret_cast<void *>(&buffer));
+    curl_easy_setopt(curl.get(), CURLOPT_RANGE, oss.c_str());
+    CURLcode res = curl_easy_perform(curl.get());
     if (res != CURLE_OK) {
         fprintf(stderr, "curl_easy_perform() failed: %s\n",
                 curl_easy_strerror(res));
     }
 }
 
-std::string getData(CURL *curl, int64_t position, int64_t chunksize) {
+std::string getData(CURL_ptr& curl, int64_t position, int64_t chunksize) {
     std::string buffer{};
     getData(curl, position, chunksize, buffer);
     return buffer;
@@ -134,13 +142,13 @@ void convertGenomeToBinPos(const int64_t origRegionIndices[4], int64_t regionInd
     }
 }
 
-static CURL *initCURL(const std::string& url) {
-    CURL *curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-        curl_easy_setopt(curl, CURLOPT_URL, &url.front());
-        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(curl, CURLOPT_USERAGENT, "straw");
+static CURL_ptr initCURL(const std::string& url) {
+    auto curl = CURL_ptr(curl_easy_init(), &curl_easy_cleanup);
+    if (curl.get()) {
+        curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+        curl_easy_setopt(curl.get(), CURLOPT_URL, &url.front());
+        curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl.get(), CURLOPT_USERAGENT, "straw");
     } else {
         cerr << "Unable to initialize curl " << endl;
         exit(2);
@@ -149,62 +157,78 @@ static CURL *initCURL(const std::string& url) {
 }
 
 class HiCFileStream {
-public:
-    string prefix = "http"; // HTTP code
-    ifstream fin{};
-    CURL *curl{};
-    bool isHttp = false;
+    ifstream fin_{};
+    CURL_ptr curl_{nullptr, &curl_easy_cleanup};
 
-    explicit HiCFileStream(const string &fileName) {
-        if (std::strncmp(fileName.c_str(), prefix.c_str(), prefix.size()) == 0) {
-            isHttp = true;
-            curl = initCURL(fileName.c_str());
-            if (!curl) {
-                cerr << "URL " << fileName << " cannot be opened for reading" << endl;
-                exit(3);
-            }
-        } else {
-            fin.open(fileName, fstream::in | fstream::binary);
-            if (!fin) {
-                cerr << "File " << fileName << " cannot be opened for reading" << endl;
-                exit(4);
-            }
-        }
+  public:
+    explicit HiCFileStream(const string &fileName) :
+        fin_(initRegularFile(fileName)),
+        curl_(initRemoteFile(fileName)) {}
+
+    bool isLocal() const noexcept {
+        return !curl_;
     }
 
-    HiCFileStream(const HiCFileStream& other) = delete;
-    HiCFileStream(HiCFileStream&& other) noexcept = default;
-
-    ~HiCFileStream() noexcept {
-        this->close();
+    bool isRemote() const noexcept {
+        return !isLocal();
     }
 
-    HiCFileStream& operator=(const HiCFileStream& other) = delete;
-    HiCFileStream& operator=(HiCFileStream&& other) noexcept = default;
+    CURL_ptr& curl() noexcept {
+        // TODO: this is a bit of a code smell.
+        //       Code requiring access to curl_ should probably
+        //       be a member function of this class
+        assert(curl_);
+        return curl_;
+    }
 
-    void close() noexcept {
-        // TODO: check error codes
-        if (isHttp) {
-            curl_easy_cleanup(curl);
-        } else {
-            fin.close();
-        }
+    const CURL_ptr& curl() const noexcept {
+        // TODO: this is a bit of a code smell.
+        //       Code requiring access to curl_ should probably
+        //       be a member function of this class
+        assert(curl_);
+        return curl_;
+    }
+
+    std::ifstream& fin() noexcept {
+        // TODO: same as above
+        return fin_;
+    }
+    const std::ifstream& fin() const noexcept {
+        // TODO: same as above
+        return fin_;
     }
 
     void readCompressedBytes(indexEntry idx, std::string& buffer) {
-    if (isHttp) {
-      getData(curl, idx.position, idx.size, buffer);
-    } else {
-      fin.seekg(idx.position, ios::beg);
-      buffer.resize(idx.size);
-      fin.read(&buffer.front(), idx.size);
+        if (isRemote()) {
+            getData(curl_, idx.position, idx.size, buffer);
+        } else {
+            fin_.seekg(idx.position, ios::beg);
+            buffer.resize(idx.size);
+            fin_.read(&buffer.front(), idx.size);
+        }
     }
-  }
 
     std::string readCompressedBytes(indexEntry idx) {
-      std::string buffer{};
-      readCompressedBytes(idx, buffer);
-      return buffer;
+        std::string buffer{};
+        readCompressedBytes(idx, buffer);
+        return buffer;
+    }
+
+  private:
+    static CURL_ptr initRemoteFile(const std::string& url) {
+        if (StartsWith(url, "http")) {
+            return initCURL(url);
+        }
+        return {nullptr, &curl_easy_cleanup};
+    }
+
+    static std::ifstream initRegularFile(const std::string& path) {
+        if (StartsWith(path, "http")) {
+            return {};
+        }
+        std::ifstream ifs(path, fstream::in | fstream::binary);
+        ifs.exceptions(ifs.exceptions() | std::ios::badbit | std::ios::failbit);
+        return ifs;
     }
 };
 
@@ -338,7 +362,7 @@ void populateVectorWithDoubles(istream &fin, vector<double> &vector, int64_t nVa
     }
 }
 
-int64_t readThroughExpectedVectorURL(CURL *curl, int64_t currentPointer, int32_t version, vector<double> &expectedValues, int64_t nValues,
+int64_t readThroughExpectedVectorURL(CURL_ptr& curl, int64_t currentPointer, int32_t version, vector<double> &expectedValues, int64_t nValues,
                                bool store, int32_t resolution) {
     if (store) {
         int32_t bufferSize = nValues * sizeof(double) + 10000;
@@ -385,7 +409,7 @@ void readThroughExpectedVector(int32_t version, istream &fin, vector<double> &ex
     }
 }
 
-int64_t readThroughNormalizationFactorsURL(CURL *curl, int64_t currentPointer, int32_t version, bool store, vector<double> &expectedValues,
+int64_t readThroughNormalizationFactorsURL(CURL_ptr& curl, int64_t currentPointer, int32_t version, bool store, vector<double> &expectedValues,
                                      int32_t c1, int32_t nNormalizationFactors) {
 
     if (store) {
@@ -455,9 +479,9 @@ int64_t readStringFromURL(istream &fin, string &basicString) {
 // norm, unit (BP or FRAG) and resolution or binsize, and sets the file
 // position of the matrix and the normalization vectors for those chromosomes
 // at the given normalization and resolution
-bool readFooterURL(CURL *curl, int64_t master, int32_t version, int32_t c1, int32_t c2, const string &matrixType,
-                const string &norm, const string &unit, int32_t resolution, int64_t &myFilePos,
-                indexEntry &c1NormEntry, indexEntry &c2NormEntry, vector<double> &expectedValues) {
+bool readFooterURL(CURL_ptr& curl, int64_t master, int32_t version, int32_t c1, int32_t c2, const string &matrixType,
+                   const string &norm, const string &unit, int32_t resolution, int64_t &myFilePos,
+                   indexEntry &c1NormEntry, indexEntry &c2NormEntry, vector<double> &expectedValues) {
 
     int64_t currentPointer = master;
 
@@ -829,7 +853,7 @@ map<int32_t, indexEntry> readMatrixZoomData(istream &fin, const string &myunit, 
 }
 
 // reads the raw binned contact matrix at specified resolution, setting the block bin count and block column count
-map<int32_t, indexEntry> readMatrixZoomDataHttp(CURL *curl, int64_t &myFilePosition, const string &myunit,
+map<int32_t, indexEntry> readMatrixZoomDataHttp(CURL_ptr& curl, int64_t &myFilePosition, const string &myunit,
                                                 int32_t mybinsize, float &mySumCounts, int32_t &myBlockBinCount,
                                                 int32_t &myBlockColumnCount, bool &found) {
     map<int32_t, indexEntry> blockMap;
@@ -862,7 +886,7 @@ map<int32_t, indexEntry> readMatrixZoomDataHttp(CURL *curl, int64_t &myFilePosit
 
 // goes to the specified file pointer in http and finds the raw contact matrixType at specified resolution, calling readMatrixZoomData.
 // sets blockbincount and blockcolumncount
-map<int32_t, indexEntry> readMatrixHttp(CURL *curl, int64_t myFilePosition, const string &unit, int32_t resolution,
+map<int32_t, indexEntry> readMatrixHttp(CURL_ptr& curl, int64_t myFilePosition, const string &unit, int32_t resolution,
                                         float &mySumCounts, int32_t &myBlockBinCount, int32_t &myBlockColumnCount) {
     int32_t size = sizeof(int32_t) * 3;
     auto buffer = getData(curl, myFilePosition, size);
@@ -1220,14 +1244,14 @@ public:
         HiCFileStream stream(fileName);
         indexEntry c1NormEntry{}, c2NormEntry{};
 
-        if (stream.isHttp) {
-            foundFooter = readFooterURL(stream.curl, master, version, c1, c2, matrixType, norm, unit,
-                                     resolution,
-                                     myFilePos,
-                                     c1NormEntry, c2NormEntry, expectedValues);
+        if (stream.isRemote()) {
+            foundFooter = readFooterURL(stream.curl(), master, version, c1, c2, matrixType, norm, unit,
+                                        resolution,
+                                        myFilePos,
+                                        c1NormEntry, c2NormEntry, expectedValues);
         } else {
-            stream.fin.seekg(master, ios::beg);
-            foundFooter = readFooter(stream.fin, master, version, c1, c2, matrixType, norm,
+            stream.fin().seekg(master, ios::beg);
+            foundFooter = readFooter(stream.fin(), master, version, c1, c2, matrixType, norm,
                                      unit,
                                      resolution, myFilePos,
                                      c1NormEntry, c2NormEntry, expectedValues);
@@ -1247,14 +1271,14 @@ public:
         }
 
         stream = HiCFileStream((fileName));
-        if (stream.isHttp) {
+        if (stream.isRemote()) {
             // readMatrix will assign blockBinCount and blockColumnCount
-            blockMap = readMatrixHttp(stream.curl, myFilePos, unit, resolution, sumCounts,
+            blockMap = readMatrixHttp(stream.curl(), myFilePos, unit, resolution, sumCounts,
                                       blockBinCount,
                                       blockColumnCount);
         } else {
             // readMatrix will assign blockBinCount and blockColumnCount
-            blockMap = readMatrix(stream.fin, myFilePos, unit, resolution, sumCounts,
+            blockMap = readMatrix(stream.fin(), myFilePos, unit, resolution, sumCounts,
                                   blockBinCount,
                                   blockColumnCount);
         }
@@ -1429,7 +1453,6 @@ public:
 
 class HiCFile {
 public:
-    string prefix = "http"; // HTTP code
     int64_t master = 0LL;
     map<string, chromosome> chromosomeMap;
     string genomeID;
@@ -1461,9 +1484,9 @@ public:
         return numbytes;
     }
 
-    static CURL *oneTimeInitCURL(const std::string& url) {
-        CURL *curl = initCURL(url);
-        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, hdf);
+    static CURL_ptr oneTimeInitCURL(const std::string& url) {
+        auto curl = initCURL(url);
+        curl_easy_setopt(curl.get(), CURLOPT_HEADERFUNCTION, hdf);
         return curl;
     }
 
@@ -1471,15 +1494,13 @@ public:
         this->fileName = fileName;
 
         // read header into buffer; 100K should be sufficient
-        if (std::strncmp(fileName.c_str(), prefix.c_str(), prefix.size()) == 0) {
-            CURL *curl;
-            curl = oneTimeInitCURL(fileName);
+        if (StartsWith(fileName, "http")) {
+            auto curl = oneTimeInitCURL(fileName);
             auto buffer = getData(curl, 0, 100000);
             memstream bufin(buffer);
             chromosomeMap = readHeader(bufin, master, genomeID, numChromosomes,
                                        version, nviPosition, nviLength);
             resolutions = readResolutionsFromHeader(bufin);
-            curl_easy_cleanup(curl);
         } else {
             ifstream fin;
             fin.open(fileName, fstream::in | fstream::binary);
