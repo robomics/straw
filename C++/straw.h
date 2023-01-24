@@ -52,16 +52,17 @@ struct chromosome {
 // this is for creating a stream from a byte array for ease of use
 // see https://stackoverflow.com/questions/41141175/how-to-implement-seekg-seekpos-on-an-in-memory-buffer
 struct membuf : std::streambuf {
-    membuf(char *begin, int32_t l) {
-        setg(begin, begin, begin + l);
+    membuf(char *first, std::size_t size) {
+        setg(first, first, first + size);
     }
 };
 
 struct memstream : virtual membuf, std::istream {
-    memstream(char *begin, int32_t l) :
-            membuf(begin, l),
+    memstream(char *first, std::size_t size) :
+            membuf(first, size),
             std::istream(static_cast<std::streambuf*>(this)) {
     }
+    explicit memstream(std::string& s) : memstream(&s.front(), s.size()) {}
 
     std::istream::pos_type seekpos(std::istream::pos_type sp, std::ios_base::openmode which) override {
         return seekoff(sp - std::istream::pos_type(std::istream::off_type(0)), std::ios_base::beg, which);
@@ -78,12 +79,6 @@ struct memstream : virtual membuf, std::istream {
             setg(eback(), eback() + off, egptr());
         return gptr() - eback();
     }
-};
-
-// for holding data from URL call
-struct MemoryStruct {
-    char *memory;
-    size_t size;
 };
 
 std::map<int32_t, indexEntry>
