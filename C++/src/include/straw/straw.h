@@ -107,13 +107,14 @@ class MatrixZoomData {
    public:
     MatrixZoomData(const chromosome &chrom1, const chromosome &chrom2,
                    const std::string &matrixType, const std::string &norm, const std::string &unit,
-                   std::int32_t resolution, std::int32_t &version, std::int64_t &master, std::int64_t &totalFileSize,
-                   const std::string &fileName);
+                   std::int32_t resolution, std::int32_t &version, std::int64_t &master,
+                   std::int64_t &totalFileSize, const std::string &fileName);
 
-    std::vector<contactRecord> getRecords(std::int64_t gx0, std::int64_t gx1, std::int64_t gy0, std::int64_t gy1);
+    std::vector<contactRecord> getRecords(std::int64_t gx0, std::int64_t gx1, std::int64_t gy0,
+                                          std::int64_t gy1);
 
-    std::vector<std::vector<float>> getRecordsAsMatrix(std::int64_t gx0, std::int64_t gx1, std::int64_t gy0,
-                                                       std::int64_t gy1);
+    std::vector<std::vector<float>> getRecordsAsMatrix(std::int64_t gx0, std::int64_t gx1,
+                                                       std::int64_t gy0, std::int64_t gy1);
 
     std::int64_t getNumberOfTotalRecords();
 
@@ -122,7 +123,8 @@ class MatrixZoomData {
                                                                  std::int32_t &version,
                                                                  const std::string &fileName);
 
-    static bool isInRange(std::int32_t r, std::int32_t c, std::int32_t numRows, std::int32_t numCols);
+    static bool isInRange(std::int32_t r, std::int32_t c, std::int32_t numRows,
+                          std::int32_t numCols);
 
     std::set<std::int32_t> getBlockNumbers(std::int64_t *regionIndices) const;
 
@@ -131,19 +133,21 @@ class MatrixZoomData {
     std::vector<double> getExpectedValues();
 };
 
-void readFooter(std::istream &fin, std::int64_t master, std::int32_t version, std::int32_t c1, std::int32_t c2,
-                const std::string &matrixType, const std::string &norm, const std::string &unit,
-                std::int32_t resolution, std::int64_t &myFilePos, indexEntry &c1NormEntry,
-                indexEntry &c2NormEntry, std::vector<double> &expectedValues);
+void readFooter(std::istream &fin, std::int64_t master, std::int32_t version, std::int32_t c1,
+                std::int32_t c2, const std::string &matrixType, const std::string &norm,
+                const std::string &unit, std::int32_t resolution, std::int64_t &myFilePos,
+                indexEntry &c1NormEntry, indexEntry &c2NormEntry,
+                std::vector<double> &expectedValues);
 
 // reads the footer from the master pointer location. takes in the chromosomes,
 // norm, unit (BP or FRAG) and resolution or binsize, and sets the file
 // position of the matrix and the normalization vectors for those chromosomes
 // at the given normalization and resolution
-void readFooterURL(CURL_ptr &curl, std::int64_t master, std::int32_t version, std::int32_t c1, std::int32_t c2,
-                   const std::string &matrixType, const std::string &norm, const std::string &unit,
-                   std::int32_t resolution, std::int64_t &myFilePos, indexEntry &c1NormEntry,
-                   indexEntry &c2NormEntry, std::vector<double> &expectedValues);
+void readFooterURL(CURL_ptr &curl, std::int64_t master, std::int32_t version, std::int32_t c1,
+                   std::int32_t c2, const std::string &matrixType, const std::string &norm,
+                   const std::string &unit, std::int32_t resolution, std::int64_t &myFilePos,
+                   indexEntry &c1NormEntry, indexEntry &c2NormEntry,
+                   std::vector<double> &expectedValues);
 
 // TODO remove me!
 inline std::string readCompressedBytesFromFile(const std::string &fileName, indexEntry idx) {
@@ -192,9 +196,10 @@ class HiCFile {
 };
 
 std::map<std::int32_t, indexEntry> readMatrixZoomData(std::istream &fin, const std::string &myunit,
-                                                 std::int32_t mybinsize, float &mySumCounts,
-                                                 std::int32_t &myBlockBinCount,
-                                                 std::int32_t &myBlockColumnCount, bool &found);
+                                                      std::int32_t mybinsize, float &mySumCounts,
+                                                      std::int32_t &myBlockBinCount,
+                                                      std::int32_t &myBlockColumnCount,
+                                                      bool &found);
 
 std::vector<double> readNormalizationVector(std::istream &fin, indexEntry entry);
 
@@ -203,6 +208,12 @@ std::vector<contactRecord> straw(const std::string &matrixType, const std::strin
                                  const std::string &chr2loc, const std::string &unit,
                                  std::int32_t binsize);
 
-std::int64_t getNumRecordsForFile(const std::string &filename, std::int32_t binsize, bool interOnly);
+std::int64_t getNumRecordsForFile(const std::string &filename, std::int32_t binsize,
+                                  bool interOnly);
+
+#include "../../hic_file_impl.hpp"
+#include "../../hic_file_stream_impl.hpp"
+#include "../../matrix_zoom_data_impl.hpp"
+#include "../../straw_impl.hpp"
 
 #endif

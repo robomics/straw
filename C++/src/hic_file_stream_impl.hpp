@@ -22,6 +22,9 @@ persons to whom the Software is furnished to do so, subject to the following con
   THE SOFTWARE.
 */
 
+#ifndef HIC_FILE_STREAM_IMPL_H
+#define HIC_FILE_STREAM_IMPL_H
+
 #include <curl/curl.h>
 
 #include <cassert>
@@ -31,31 +34,30 @@ persons to whom the Software is furnished to do so, subject to the following con
 #include <string>
 
 #include "straw/internal/common.h"
-#include "straw/straw.h"
 
 namespace internal {
 
-HiCFileStream::HiCFileStream(const std::string &fileName)
+inline HiCFileStream::HiCFileStream(const std::string &fileName)
     : fin_(initRegularFile(fileName)), curl_(initRemoteFile(fileName)) {}
 
-bool HiCFileStream::isLocal() const noexcept { return !curl_; }
+inline bool HiCFileStream::isLocal() const noexcept { return !curl_; }
 
-bool HiCFileStream::isRemote() const noexcept { return !isLocal(); }
+inline bool HiCFileStream::isRemote() const noexcept { return !isLocal(); }
 
-CURL_ptr &HiCFileStream::curl() noexcept {
+inline CURL_ptr &HiCFileStream::curl() noexcept {
     assert(curl_);
     return curl_;
 }
 
-const CURL_ptr &HiCFileStream::curl() const noexcept {
+inline const CURL_ptr &HiCFileStream::curl() const noexcept {
     assert(curl_);
     return curl_;
 }
 
-std::ifstream &HiCFileStream::fin() noexcept { return fin_; }
-const std::ifstream &HiCFileStream::fin() const noexcept { return fin_; }
+inline std::ifstream &HiCFileStream::fin() noexcept { return fin_; }
+inline const std::ifstream &HiCFileStream::fin() const noexcept { return fin_; }
 
-void HiCFileStream::readCompressedBytes(indexEntry idx, std::string &buffer) {
+inline void HiCFileStream::readCompressedBytes(indexEntry idx, std::string &buffer) {
     if (isRemote()) {
         getData(curl_, idx.position, idx.size, buffer);
     } else {
@@ -65,13 +67,13 @@ void HiCFileStream::readCompressedBytes(indexEntry idx, std::string &buffer) {
     }
 }
 
-std::string HiCFileStream::readCompressedBytes(indexEntry idx) {
+inline std::string HiCFileStream::readCompressedBytes(indexEntry idx) {
     std::string buffer{};
     readCompressedBytes(idx, buffer);
     return buffer;
 }
 
-CURL_ptr HiCFileStream::initRemoteFile(const std::string &url) {
+inline CURL_ptr HiCFileStream::initRemoteFile(const std::string &url) {
     try {
         if (StartsWith(url, "http")) {
             return initCURL(url);
@@ -82,7 +84,7 @@ CURL_ptr HiCFileStream::initRemoteFile(const std::string &url) {
     }
 }
 
-std::ifstream HiCFileStream::initRegularFile(const std::string &path) {
+inline std::ifstream HiCFileStream::initRegularFile(const std::string &path) {
     try {
         if (StartsWith(path, "http")) {
             return {};
@@ -95,3 +97,5 @@ std::ifstream HiCFileStream::initRegularFile(const std::string &path) {
     }
 }
 }  // namespace internal
+
+#endif

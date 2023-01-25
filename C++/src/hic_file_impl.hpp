@@ -22,6 +22,9 @@ Copyright (c) 2011-2016 Broad Institute, Aiden Lab
         THE SOFTWARE.
             */
 
+#ifndef HIC_FILE_IMPL_H
+#define HIC_FILE_IMPL_H
+
 #include <curl/curl.h>
 
 #include <algorithm>
@@ -36,9 +39,8 @@ Copyright (c) 2011-2016 Broad Institute, Aiden Lab
 #include <vector>
 
 #include "straw/internal/common.h"
-#include "straw/straw.h"
 
-std::int64_t HiCFile::readTotalFileSize(const std::string &url) {
+inline std::int64_t HiCFile::readTotalFileSize(const std::string &url) {
     if (internal::StartsWith(url, "http")) {
         auto discardData = +[](void *buffer, std::size_t size, std::size_t nmemb,
                                void *userp) -> std::size_t { return size * nmemb; };
@@ -74,7 +76,7 @@ std::int64_t HiCFile::readTotalFileSize(const std::string &url) {
     return std::ifstream(url, std::ios::binary | std::ios::ate).tellg();
 }
 
-static std::vector<std::int32_t> readResolutionsFromHeader(std::istream &fin) {
+inline std::vector<std::int32_t> readResolutionsFromHeader(std::istream &fin) {
     int numBpResolutions = internal::readInt32FromFile(fin);
     std::vector<std::int32_t> resolutions;
     for (int i = 0; i < numBpResolutions; i++) {
@@ -84,7 +86,7 @@ static std::vector<std::int32_t> readResolutionsFromHeader(std::istream &fin) {
     return resolutions;
 }
 
-HiCFile::HiCFile(std::string fileName_)
+inline HiCFile::HiCFile(std::string fileName_)
     : fileName(std::move(fileName_)), totalFileSize(readTotalFileSize(fileName)) {
     // read header into buffer; 100K should be sufficient
     if (internal::StartsWith(fileName, "http")) {
@@ -106,11 +108,13 @@ HiCFile::HiCFile(std::string fileName_)
     assert(totalFileSize != 0);
 }
 
-const std::string &HiCFile::getGenomeID() const noexcept { return genomeID; }
+inline const std::string &HiCFile::getGenomeID() const noexcept { return genomeID; }
 
-const std::vector<std::int32_t> &HiCFile::getResolutions() const noexcept { return resolutions; }
+inline const std::vector<std::int32_t> &HiCFile::getResolutions() const noexcept {
+    return resolutions;
+}
 
-std::vector<chromosome> HiCFile::getChromosomes() const {
+inline std::vector<chromosome> HiCFile::getChromosomes() const {
     std::vector<chromosome> flat_chroms(chromosomes.size());
     for (const auto &node : chromosomes) {
         flat_chroms[node.second.index] = node.second;
@@ -119,9 +123,11 @@ std::vector<chromosome> HiCFile::getChromosomes() const {
     return flat_chroms;
 }
 
-auto HiCFile::getChromosomeMap() const noexcept -> const ChromosomeMap & { return chromosomes; }
+inline auto HiCFile::getChromosomeMap() const noexcept -> const ChromosomeMap & {
+    return chromosomes;
+}
 
-internal::MatrixZoomData HiCFile::getMatrixZoomData(
+inline internal::MatrixZoomData HiCFile::getMatrixZoomData(
     const std::string &chr1, const std::string &chr2, const std::string &matrixType,
     const std::string &norm, const std::string &unit, std::int32_t resolution) {
     chromosome chrom1 = chromosomes[chr1];
@@ -132,9 +138,10 @@ internal::MatrixZoomData HiCFile::getMatrixZoomData(
 
 // reads the header, storing the positions of the normalization vectors and returning the
 // masterIndexPosition pointer
-auto HiCFile::readHeader(std::istream &fin, std::int64_t &masterIndexPosition,
-                         std::string &genomeID, std::int32_t &numChromosomes, std::int32_t &version,
-                         std::int64_t &nviPosition, std::int64_t &nviLength) -> ChromosomeMap {
+inline auto HiCFile::readHeader(std::istream &fin, std::int64_t &masterIndexPosition,
+                                std::string &genomeID, std::int32_t &numChromosomes,
+                                std::int32_t &version, std::int64_t &nviPosition,
+                                std::int64_t &nviLength) -> ChromosomeMap {
     std::map<std::string, chromosome> chromosomeMap;
     if (!internal::checkMagicString(fin)) {
         throw std::runtime_error(
@@ -182,3 +189,5 @@ auto HiCFile::readHeader(std::istream &fin, std::int64_t &masterIndexPosition,
     }
     return chromosomeMap;
 }
+
+#endif

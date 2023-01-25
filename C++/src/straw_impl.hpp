@@ -21,7 +21,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 */
-#include "straw/straw.h"
+
+#ifndef STRAW_IMPL_H
+#define STRAW_IMPL_H
 
 #include <zlib.h>
 
@@ -51,7 +53,7 @@
   <chr2>[:y1:y2] <BP/FRAG> <binsize>
  */
 
-static void parsePositions(const std::string &chrLoc, std::string &chrom, std::int64_t &pos1,
+inline void parsePositions(const std::string &chrLoc, std::string &chrom, std::int64_t &pos1,
                            std::int64_t &pos2, const HiCFile::ChromosomeMap &map) {
     std::string x, y;
     std::stringstream ss(chrLoc);
@@ -69,10 +71,10 @@ static void parsePositions(const std::string &chrLoc, std::string &chrom, std::i
     }
 }
 
-std::vector<contactRecord> straw(const std::string &matrixType, const std::string &norm,
-                                 const std::string &fileName, const std::string &chr1loc,
-                                 const std::string &chr2loc, const std::string &unit,
-                                 std::int32_t binsize) {
+inline std::vector<contactRecord> straw(const std::string &matrixType, const std::string &norm,
+                                        const std::string &fileName, const std::string &chr1loc,
+                                        const std::string &chr2loc, const std::string &unit,
+                                        std::int32_t binsize) {
     try {
         if (!(unit == "BP" || unit == "FRAG")) {
             throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
@@ -99,11 +101,10 @@ std::vector<contactRecord> straw(const std::string &matrixType, const std::strin
     }
 }
 
-std::vector<std::vector<float> > strawAsMatrix(const std::string &matrixType,
-                                               const std::string &norm, const std::string &fileName,
-                                               const std::string &chr1loc,
-                                               const std::string &chr2loc, const std::string &unit,
-                                               std::int32_t binsize) {
+inline std::vector<std::vector<float> > strawAsMatrix(
+    const std::string &matrixType, const std::string &norm, const std::string &fileName,
+    const std::string &chr1loc, const std::string &chr2loc, const std::string &unit,
+    std::int32_t binsize) {
     try {
         if (!(unit == "BP" || unit == "FRAG")) {
             throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
@@ -132,8 +133,8 @@ std::vector<std::vector<float> > strawAsMatrix(const std::string &matrixType,
     }
 }
 
-std::int64_t getNumRecordsForFile(const std::string &fileName, std::int32_t binsize,
-                                  bool interOnly) {
+inline std::int64_t getNumRecordsForFile(const std::string &fileName, std::int32_t binsize,
+                                         bool interOnly) {
     try {
         HiCFile hiCFile(fileName);
         std::int64_t totalNumRecords = 0;
@@ -164,3 +165,5 @@ std::int64_t getNumRecordsForFile(const std::string &fileName, std::int32_t bins
             std::string("getNumRecordsForFile encountered the following error: ") + e.what());
     }
 }
+
+#endif

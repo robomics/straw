@@ -22,6 +22,9 @@ Copyright (c) 2011-2016 Broad Institute, Aiden Lab
     THE SOFTWARE.
 */
 
+#ifndef MATRIX_ZOOM_DATA_IMPL_H
+#define MATRIX_ZOOM_DATA_IMPL_H
+
 #include <zlib.h>
 
 #include <algorithm>
@@ -37,11 +40,10 @@ Copyright (c) 2011-2016 Broad Institute, Aiden Lab
 #include <vector>
 
 #include "straw/internal/common.h"
-#include "straw/straw.h"
 
 namespace internal {
 
-static void setValuesForMZD(std::istream &fin, const std::string &myunit, float &mySumCounts,
+inline void setValuesForMZD(std::istream &fin, const std::string &myunit, float &mySumCounts,
                             std::int32_t &mybinsize, std::int32_t &myBlockBinCount,
                             std::int32_t &myBlockColumnCount, bool &found) {
     std::string unit;
@@ -63,7 +65,7 @@ static void setValuesForMZD(std::istream &fin, const std::string &myunit, float 
     }
 }
 
-static indexEntry readIndexEntry(std::istream &fin) {
+inline indexEntry readIndexEntry(std::istream &fin) {
     std::int64_t filePosition = readInt64FromFile(fin);
     std::int32_t blockSizeInBytes = readInt32FromFile(fin);
     indexEntry entry = indexEntry();
@@ -72,7 +74,7 @@ static indexEntry readIndexEntry(std::istream &fin) {
     return entry;
 }
 
-static void populateBlockMap(std::istream &fin, std::int32_t nBlocks,
+inline void populateBlockMap(std::istream &fin, std::int32_t nBlocks,
                              std::map<std::int32_t, indexEntry> &blockMap) {
     for (int b = 0; b < nBlocks; b++) {
         std::int32_t blockNumber = readInt32FromFile(fin);
@@ -82,7 +84,7 @@ static void populateBlockMap(std::istream &fin, std::int32_t nBlocks,
 
 // reads the raw binned contact matrix at specified resolution, setting the block bin count and
 // block column count
-static std::map<std::int32_t, indexEntry> readMatrixZoomData(
+inline std::map<std::int32_t, indexEntry> readMatrixZoomData(
     std::istream &fin, const std::string &myunit, std::int32_t mybinsize, float &mySumCounts,
     std::int32_t &myBlockBinCount, std::int32_t &myBlockColumnCount, bool &found) {
     std::map<std::int32_t, indexEntry> blockMap;
@@ -101,7 +103,7 @@ static std::map<std::int32_t, indexEntry> readMatrixZoomData(
 
 // reads the raw binned contact matrix at specified resolution, setting the block bin count and
 // block column count
-static std::map<std::int32_t, indexEntry> readMatrixZoomDataHttp(
+inline std::map<std::int32_t, indexEntry> readMatrixZoomDataHttp(
     CURL_ptr &curl, std::int64_t &myFilePosition, const std::string &myunit, std::int32_t mybinsize,
     float &mySumCounts, std::int32_t &myBlockBinCount, std::int32_t &myBlockColumnCount,
     bool &found) {
@@ -137,7 +139,7 @@ static std::map<std::int32_t, indexEntry> readMatrixZoomDataHttp(
 
 // goes to the specified file pointer in http and finds the raw contact matrixType at specified
 // resolution, calling readMatrixZoomData. sets blockbincount and blockcolumncount
-static std::map<std::int32_t, indexEntry> readMatrixHttp(
+inline std::map<std::int32_t, indexEntry> readMatrixHttp(
     CURL_ptr &curl, std::int64_t myFilePosition, const std::string &unit, std::int32_t resolution,
     float &mySumCounts, std::int32_t &myBlockBinCount, std::int32_t &myBlockColumnCount) {
     std::int32_t size = sizeof(std::int32_t) * 3;
@@ -166,7 +168,7 @@ static std::map<std::int32_t, indexEntry> readMatrixHttp(
 
 // goes to the specified file pointer and finds the raw contact matrixType at specified resolution,
 // calling readMatrixZoomData. sets blockbincount and blockcolumncount
-static std::map<std::int32_t, indexEntry> readMatrix(std::istream &fin, std::int64_t myFilePosition,
+inline std::map<std::int32_t, indexEntry> readMatrix(std::istream &fin, std::int64_t myFilePosition,
                                                      const std::string &unit,
                                                      std::int32_t resolution, float &mySumCounts,
                                                      std::int32_t &myBlockBinCount,
@@ -191,7 +193,7 @@ static std::map<std::int32_t, indexEntry> readMatrix(std::istream &fin, std::int
 }
 
 // reads the normalization vector from the file at the specified location
-static std::vector<double> readNormalizationVector(std::istream &bufferin, std::int32_t version) {
+inline std::vector<double> readNormalizationVector(std::istream &bufferin, std::int32_t version) {
     std::int64_t nValues;
     if (version > 8) {
         nValues = readInt64FromFile(bufferin);
@@ -218,7 +220,7 @@ static std::vector<double> readNormalizationVector(std::istream &bufferin, std::
 
 // gets the blocks that need to be read for this slice of the data.  needs blockbincount,
 // blockcolumncount, and whether or not this is intrachromosomal.
-static std::set<std::int32_t> getBlockNumbersForRegionFromBinPosition(
+inline std::set<std::int32_t> getBlockNumbersForRegionFromBinPosition(
     const std::int64_t *regionIndices, std::int32_t blockBinCount, std::int32_t blockColumnCount,
     bool intra) {
     std::int32_t col1, col2, row1, row2;
@@ -247,7 +249,7 @@ static std::set<std::int32_t> getBlockNumbersForRegionFromBinPosition(
     return blocksSet;
 }
 
-static std::set<std::int32_t> getBlockNumbersForRegionFromBinPositionV9Intra(
+inline std::set<std::int32_t> getBlockNumbersForRegionFromBinPositionV9Intra(
     std::int64_t *regionIndices, std::int32_t blockBinCount, std::int32_t blockColumnCount) {
     // regionIndices is binX1 binX2 binY1 binY2
     std::set<std::int32_t> blocksSet;
@@ -281,7 +283,7 @@ static std::set<std::int32_t> getBlockNumbersForRegionFromBinPositionV9Intra(
     return blocksSet;
 }
 
-static void appendRecord(std::vector<contactRecord> &vector, std::int32_t index, std::int32_t binX,
+inline void appendRecord(std::vector<contactRecord> &vector, std::int32_t index, std::int32_t binX,
                          std::int32_t binY, float counts) {
     contactRecord record = contactRecord();
     record.binX = binX;
@@ -290,7 +292,7 @@ static void appendRecord(std::vector<contactRecord> &vector, std::int32_t index,
     vector[index] = record;
 }
 
-static std::string decompressBlock(indexEntry idx, const std::string &compressedBytes) {
+inline std::string decompressBlock(indexEntry idx, const std::string &compressedBytes) {
     std::string uncompressedBytes(idx.size * 10, '\0');  // biggest seen so far is 3
     z_stream infstream;
     infstream.zalloc = Z_NULL;
@@ -314,7 +316,7 @@ static std::string decompressBlock(indexEntry idx, const std::string &compressed
 // this is the meat of reading the data.  takes in the block number and returns the set of contact
 // records corresponding to that block.  the block data is compressed and must be decompressed using
 // the zlib library functions
-static std::vector<contactRecord> readBlock(const std::string &fileName, indexEntry idx,
+inline std::vector<contactRecord> readBlock(const std::string &fileName, indexEntry idx,
                                             std::int32_t version) {
     if (idx.size <= 0) {
         std::vector<contactRecord> v;
@@ -446,7 +448,7 @@ static std::vector<contactRecord> readBlock(const std::string &fileName, indexEn
     return v;
 }
 
-static std::int32_t getNumRecordsInBlock(const std::string &fileName, indexEntry idx,
+inline std::int32_t getNumRecordsInBlock(const std::string &fileName, indexEntry idx,
                                          std::int32_t version) {
     if (idx.size <= 0) {
         return 0;
@@ -461,11 +463,11 @@ static std::int32_t getNumRecordsInBlock(const std::string &fileName, indexEntry
     return nRecords;
 }
 
-MatrixZoomData::MatrixZoomData(const chromosome &chrom1, const chromosome &chrom2,
-                               const std::string &matrixType, const std::string &norm,
-                               const std::string &unit, std::int32_t resolution,
-                               std::int32_t &version, std::int64_t &master,
-                               std::int64_t &totalFileSize, const std::string &fileName) {
+inline MatrixZoomData::MatrixZoomData(const chromosome &chrom1, const chromosome &chrom2,
+                                      const std::string &matrixType, const std::string &norm,
+                                      const std::string &unit, std::int32_t resolution,
+                                      std::int32_t &version, std::int64_t &master,
+                                      std::int64_t &totalFileSize, const std::string &fileName) {
     this->version = version;
     this->fileName = fileName;
     std::int32_t c01 = chrom1.index;
@@ -524,21 +526,20 @@ MatrixZoomData::MatrixZoomData(const chromosome &chrom1, const chromosome &chrom
     }
 }
 
-std::vector<double> MatrixZoomData::readNormalizationVectorFromFooter(indexEntry cNormEntry,
-                                                                      std::int32_t &version,
-                                                                      const std::string &fileName) {
+inline std::vector<double> MatrixZoomData::readNormalizationVectorFromFooter(
+    indexEntry cNormEntry, std::int32_t &version, const std::string &fileName) {
     auto buffer = readCompressedBytesFromFile(fileName, cNormEntry);
     memstream bufferin(buffer);
     std::vector<double> cNorm = readNormalizationVector(bufferin, version);
     return cNorm;
 }
 
-bool MatrixZoomData::isInRange(std::int32_t r, std::int32_t c, std::int32_t numRows,
-                               std::int32_t numCols) {
+inline bool MatrixZoomData::isInRange(std::int32_t r, std::int32_t c, std::int32_t numRows,
+                                      std::int32_t numCols) {
     return 0 <= r && r < numRows && 0 <= c && c < numCols;
 }
 
-std::set<std::int32_t> MatrixZoomData::getBlockNumbers(std::int64_t *regionIndices) const {
+inline std::set<std::int32_t> MatrixZoomData::getBlockNumbers(std::int64_t *regionIndices) const {
     if (version > 8 && isIntra) {
         return getBlockNumbersForRegionFromBinPositionV9Intra(regionIndices, blockBinCount,
                                                               blockColumnCount);
@@ -548,7 +549,7 @@ std::set<std::int32_t> MatrixZoomData::getBlockNumbers(std::int64_t *regionIndic
     }
 }
 
-std::vector<double> MatrixZoomData::getNormVector(std::int32_t index) {
+inline std::vector<double> MatrixZoomData::getNormVector(std::int32_t index) {
     if (index == c1) {
         return c1Norm;
     } else if (index == c2) {
@@ -559,10 +560,10 @@ std::vector<double> MatrixZoomData::getNormVector(std::int32_t index) {
                              std::to_string(c2));
 }
 
-std::vector<double> MatrixZoomData::getExpectedValues() { return expectedValues; }
+inline std::vector<double> MatrixZoomData::getExpectedValues() { return expectedValues; }
 
-std::vector<contactRecord> MatrixZoomData::getRecords(std::int64_t gx0, std::int64_t gx1,
-                                                      std::int64_t gy0, std::int64_t gy1) {
+inline std::vector<contactRecord> MatrixZoomData::getRecords(std::int64_t gx0, std::int64_t gx1,
+                                                             std::int64_t gy0, std::int64_t gy1) {
     std::int64_t origRegionIndices[] = {gx0, gx1, gy0, gy1};
     std::int64_t regionIndices[4];
     convertGenomeToBinPos(origRegionIndices, regionIndices, resolution);
@@ -620,10 +621,10 @@ std::vector<contactRecord> MatrixZoomData::getRecords(std::int64_t gx0, std::int
     return records;
 }
 
-std::vector<std::vector<float> > MatrixZoomData::getRecordsAsMatrix(std::int64_t gx0,
-                                                                    std::int64_t gx1,
-                                                                    std::int64_t gy0,
-                                                                    std::int64_t gy1) {
+inline std::vector<std::vector<float> > MatrixZoomData::getRecordsAsMatrix(std::int64_t gx0,
+                                                                           std::int64_t gx1,
+                                                                           std::int64_t gy0,
+                                                                           std::int64_t gy1) {
     std::vector<contactRecord> records = this->getRecords(gx0, gx1, gy0, gy1);
     if (records.empty()) {
         std::vector<std::vector<float> > res =
@@ -676,7 +677,7 @@ std::vector<std::vector<float> > MatrixZoomData::getRecordsAsMatrix(std::int64_t
     return finalMatrix;
 }
 
-std::int64_t MatrixZoomData::getNumberOfTotalRecords() {
+inline std::int64_t MatrixZoomData::getNumberOfTotalRecords() {
     std::int64_t regionIndices[4] = {0, numBins1, 0, numBins2};
     std::set<std::int32_t> blockNumbers = getBlockNumbers(regionIndices);
     std::int64_t total = 0;
@@ -686,7 +687,7 @@ std::int64_t MatrixZoomData::getNumberOfTotalRecords() {
     return total;
 }
 
-static void rollingMedian(std::vector<double> &initialValues, std::vector<double> &finalResult,
+inline void rollingMedian(std::vector<double> &initialValues, std::vector<double> &finalResult,
                           std::int32_t window) {
     // window is actually a ~wing-span
     if (window < 1) {
@@ -719,10 +720,11 @@ static void rollingMedian(std::vector<double> &initialValues, std::vector<double
     finalResult = initialValues;
 }
 
-std::int64_t readThroughExpectedVectorURL(internal::CURL_ptr &curl, std::int64_t currentPointer,
-                                          std::int32_t version, std::vector<double> &expectedValues,
-                                          std::int64_t nValues, bool store,
-                                          std::int32_t resolution) {
+inline std::int64_t readThroughExpectedVectorURL(internal::CURL_ptr &curl,
+                                                 std::int64_t currentPointer, std::int32_t version,
+                                                 std::vector<double> &expectedValues,
+                                                 std::int64_t nValues, bool store,
+                                                 std::int32_t resolution) {
     if (store) {
         std::int32_t bufferSize = nValues * sizeof(double) + 10000;
         if (version > 8) {
@@ -751,9 +753,9 @@ std::int64_t readThroughExpectedVectorURL(internal::CURL_ptr &curl, std::int64_t
     }
 }
 
-void readThroughExpectedVector(std::int32_t version, std::istream &fin,
-                               std::vector<double> &expectedValues, std::int64_t nValues,
-                               bool store, std::int32_t resolution) {
+inline void readThroughExpectedVector(std::int32_t version, std::istream &fin,
+                                      std::vector<double> &expectedValues, std::int64_t nValues,
+                                      bool store, std::int32_t resolution) {
     if (store) {
         std::vector<double> initialExpectedValues;
         if (version > 8) {
@@ -775,11 +777,9 @@ void readThroughExpectedVector(std::int32_t version, std::istream &fin,
     }
 }
 
-std::int64_t readThroughNormalizationFactorsURL(internal::CURL_ptr &curl,
-                                                std::int64_t currentPointer, std::int32_t version,
-                                                bool store, std::vector<double> &expectedValues,
-                                                std::int32_t c1,
-                                                std::int32_t nNormalizationFactors) {
+inline std::int64_t readThroughNormalizationFactorsURL(
+    internal::CURL_ptr &curl, std::int64_t currentPointer, std::int32_t version, bool store,
+    std::vector<double> &expectedValues, std::int32_t c1, std::int32_t nNormalizationFactors) {
     if (store) {
         std::int32_t bufferSize =
             nNormalizationFactors * (sizeof(std::int32_t) + sizeof(double)) + 10000;
@@ -812,8 +812,8 @@ std::int64_t readThroughNormalizationFactorsURL(internal::CURL_ptr &curl,
     }
 }
 
-void readThroughNormalizationFactors(std::istream &fin, std::int32_t version, bool store,
-                                     std::vector<double> &expectedValues, std::int32_t c1) {
+inline void readThroughNormalizationFactors(std::istream &fin, std::int32_t version, bool store,
+                                            std::vector<double> &expectedValues, std::int32_t c1) {
     std::int32_t nNormalizationFactors = readInt32FromFile(fin);
     if (store) {
         for (int j = 0; j < nNormalizationFactors; j++) {
@@ -845,11 +845,11 @@ void readThroughNormalizationFactors(std::istream &fin, std::int32_t version, bo
 // norm, unit (BP or FRAG) and resolution or binsize, and sets the file
 // position of the matrix and the normalization vectors for those chromosomes
 // at the given normalization and resolution
-void readFooterURL(CURL_ptr &curl, std::int64_t master, std::int32_t version, std::int32_t c1,
-                   std::int32_t c2, const std::string &matrixType, const std::string &norm,
-                   const std::string &unit, std::int32_t resolution, std::int64_t &myFilePos,
-                   indexEntry &c1NormEntry, indexEntry &c2NormEntry,
-                   std::vector<double> &expectedValues) {
+inline void readFooterURL(CURL_ptr &curl, std::int64_t master, std::int32_t version,
+                          std::int32_t c1, std::int32_t c2, const std::string &matrixType,
+                          const std::string &norm, const std::string &unit, std::int32_t resolution,
+                          std::int64_t &myFilePos, indexEntry &c1NormEntry, indexEntry &c2NormEntry,
+                          std::vector<double> &expectedValues) {
     std::int64_t currentPointer = master;
 
     auto buffer = getData(curl, currentPointer, 100);
@@ -1040,11 +1040,11 @@ void readFooterURL(CURL_ptr &curl, std::int64_t master, std::int32_t version, st
     }
 }
 
-void readFooter(std::istream &fin, std::int64_t master, std::int32_t version, std::int32_t c1,
-                std::int32_t c2, const std::string &matrixType, const std::string &norm,
-                const std::string &unit, std::int32_t resolution, std::int64_t &myFilePos,
-                indexEntry &c1NormEntry, indexEntry &c2NormEntry,
-                std::vector<double> &expectedValues) {
+inline void readFooter(std::istream &fin, std::int64_t master, std::int32_t version,
+                       std::int32_t c1, std::int32_t c2, const std::string &matrixType,
+                       const std::string &norm, const std::string &unit, std::int32_t resolution,
+                       std::int64_t &myFilePos, indexEntry &c1NormEntry, indexEntry &c2NormEntry,
+                       std::vector<double> &expectedValues) {
     if (version > 8) {
         std::int64_t nBytes = readInt64FromFile(fin);
     } else {
@@ -1167,3 +1167,5 @@ void readFooter(std::istream &fin, std::int64_t master, std::int32_t version, st
     }
 }
 }  // namespace internal
+
+#endif
