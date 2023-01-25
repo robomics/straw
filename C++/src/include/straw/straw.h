@@ -24,11 +24,16 @@
 #ifndef STRAW_H
 #define STRAW_H
 
+#include <curl/curl.h>
+
+#include <cstdint>
 #include <fstream>
+#include <map>
+#include <memory>
 #include <set>
 #include <vector>
-#include <map>
 
+#include "straw/internal/common.h"
 
 // pointer structure for reading blocks or matrices, holds the size and position
 struct indexEntry {
@@ -38,9 +43,9 @@ struct indexEntry {
 
 // sparse matrixType entry
 struct contactRecord {
-  int32_t binX;
-  int32_t binY;
-  float counts;
+    int32_t binX;
+    int32_t binY;
+    float counts;
 };
 
 // chromosome
@@ -50,53 +55,157 @@ struct chromosome {
     int64_t length;
 };
 
-// this is for creating a stream from a byte array for ease of use
-// see https://stackoverflow.com/questions/41141175/how-to-implement-seekg-seekpos-on-an-in-memory-buffer
-struct membuf : std::streambuf {
-    membuf(char *first, std::size_t size) {
-        setg(first, first, first + size);
-    }
+namespace internal {
+
+class HiCFileStream {
+    std::ifstream fin_{};
+    CURL_ptr curl_{nullptr, &curl_easy_cleanup};
+
+   public:
+    explicit HiCFileStream(const std::string &fileName);
+    bool isLocal() const noexcept;
+    bool isRemote() const noexcept;
+
+    // TODO: this is a bit of a code smell.
+    //       Code requiring access to curl_ should probably
+    //       be a member function of this class
+    CURL_ptr &curl() noexcept;
+    const CURL_ptr &curl() const noexcept;
+
+    // TODO: same as above
+    std::ifstream &fin() noexcept;
+    const std::ifstream &fin() const noexcept;
+
+    void readCompressedBytes(indexEntry idx, std::string &buffer);
+    std::string readCompressedBytes(indexEntry idx);
+
+   private:
+    static CURL_ptr initRemoteFile(const std::string &url);
+    static std::ifstream initRegularFile(const std::string &path);
 };
 
-struct memstream : virtual membuf, std::istream {
-    memstream(char *first, std::size_t size) :
-            membuf(first, size),
-            std::istream(static_cast<std::streambuf*>(this)) {
-    }
-    explicit memstream(std::string& s) : memstream(&s.front(), s.size()) {}
+class MatrixZoomData {
+    bool isIntra;
+    std::string fileName;
+    int64_t myFilePos = 0LL;
+    std::vector<double> expectedValues;
+    std::vector<double> c1Norm;
+    std::vector<double> c2Norm;
+    int32_t c1 = 0;
+    int32_t c2 = 0;
+    std::string matrixType;
+    std::string norm;
+    int32_t version = 0;
+    int32_t resolution = 0;
+    int32_t numBins1 = 0;
+    int32_t numBins2 = 0;
+    float sumCounts;
+    int32_t blockBinCount, blockColumnCount;
+    std::map<int32_t, indexEntry> blockMap;
+    double avgCount;
 
-    std::istream::pos_type seekpos(std::istream::pos_type sp, std::ios_base::openmode which) override {
-        return seekoff(sp - std::istream::pos_type(std::istream::off_type(0)), std::ios_base::beg, which);
-    }
+   public:
+    MatrixZoomData(const chromosome &chrom1, const chromosome &chrom2,
+                   const std::string &matrixType, const std::string &norm, const std::string &unit,
+                   int32_t resolution, int32_t &version, int64_t &master, int64_t &totalFileSize,
+                   const std::string &fileName);
 
-    std::istream::pos_type seekoff(std::istream::off_type off,
-                                    std::ios_base::seekdir dir,
-                                    std::ios_base::openmode which = std::ios_base::in) override {
-        if (dir == std::ios_base::cur)
-            gbump(off);
-        else if (dir == std::ios_base::end)
-            setg(eback(), egptr() + off, egptr());
-        else if (dir == std::ios_base::beg)
-            setg(eback(), eback() + off, egptr());
-        return gptr() - eback();
-    }
+    std::vector<contactRecord> getRecords(int64_t gx0, int64_t gx1, int64_t gy0, int64_t gy1);
+
+    std::vector<std::vector<float>> getRecordsAsMatrix(int64_t gx0, int64_t gx1, int64_t gy0,
+                                                       int64_t gy1);
+
+    int64_t getNumberOfTotalRecords();
+
+   private:
+    static std::vector<double> readNormalizationVectorFromFooter(indexEntry cNormEntry,
+                                                                 int32_t &version,
+                                                                 const std::string &fileName);
+
+    static bool isInRange(int32_t r, int32_t c, int32_t numRows, int32_t numCols);
+
+    std::set<int32_t> getBlockNumbers(int64_t *regionIndices) const;
+
+    std::vector<double> getNormVector(int32_t index);
+
+    std::vector<double> getExpectedValues();
 };
 
-std::map<int32_t, indexEntry>
-readMatrixZoomData(std::istream &fin, const std::string &myunit, int32_t mybinsize, float &mySumCounts,
-                   int32_t &myBlockBinCount,
-                   int32_t &myBlockColumnCount, bool &found);
+void readFooter(std::istream &fin, int64_t master, int32_t version, int32_t c1, int32_t c2,
+                const std::string &matrixType, const std::string &norm, const std::string &unit,
+                int32_t resolution, int64_t &myFilePos, indexEntry &c1NormEntry,
+                indexEntry &c2NormEntry, std::vector<double> &expectedValues);
 
-std::map<int32_t, indexEntry>
-readMatrix(std::istream &fin, int32_t myFilePosition, std::string unit, int32_t resolution, float &mySumCounts,
-           int32_t &myBlockBinCount, int32_t &myBlockColumnCount);
+// reads the footer from the master pointer location. takes in the chromosomes,
+// norm, unit (BP or FRAG) and resolution or binsize, and sets the file
+// position of the matrix and the normalization vectors for those chromosomes
+// at the given normalization and resolution
+void readFooterURL(CURL_ptr &curl, int64_t master, int32_t version, int32_t c1, int32_t c2,
+                   const std::string &matrixType, const std::string &norm, const std::string &unit,
+                   int32_t resolution, int64_t &myFilePos, indexEntry &c1NormEntry,
+                   indexEntry &c2NormEntry, std::vector<double> &expectedValues);
+
+// TODO remove me!
+inline std::string readCompressedBytesFromFile(const std::string &fileName, indexEntry idx) {
+    return internal::HiCFileStream(fileName).readCompressedBytes(idx);
+}
+
+}  // namespace internal
+
+class HiCFile {
+   public:
+    using ChromosomeMap = std::map<std::string, chromosome>;
+
+   private:
+    int64_t master = 0LL;
+    ChromosomeMap chromosomes;
+    std::string genomeID;
+    int32_t numChromosomes = 0;
+    int32_t version = 0;
+    int64_t nviPosition = 0LL;
+    int64_t nviLength = 0LL;
+    std::vector<int32_t> resolutions;
+    int64_t totalFileSize;
+    std::string fileName;
+
+   public:
+    explicit HiCFile(const std::string &fileName);
+
+    const std::string &getGenomeID() const noexcept;
+
+    const std::vector<int32_t> &getResolutions() const noexcept;
+
+    std::vector<chromosome> getChromosomes() const;
+    auto getChromosomeMap() const noexcept -> const ChromosomeMap &;
+
+    internal::MatrixZoomData getMatrixZoomData(const std::string &chr1, const std::string &chr2,
+                                               const std::string &matrixType,
+                                               const std::string &norm, const std::string &unit,
+                                               int32_t resolution);
+
+   private:
+    static size_t hdf(char *buffer, size_t size, size_t nitems, void *userdata);
+
+    static internal::CURL_ptr oneTimeInitCURL(const std::string &url, std::int64_t &totalFileSize);
+
+    std::map<std::string, chromosome> readHeader(std::istream &fin, int64_t &masterIndexPosition,
+                                                 std::string &genomeID, int32_t &numChromosomes,
+                                                 int32_t &version, int64_t &nviPosition,
+                                                 int64_t &nviLength);
+};
+
+std::map<int32_t, indexEntry> readMatrixZoomData(std::istream &fin, const std::string &myunit,
+                                                 int32_t mybinsize, float &mySumCounts,
+                                                 int32_t &myBlockBinCount,
+                                                 int32_t &myBlockColumnCount, bool &found);
 
 std::vector<double> readNormalizationVector(std::istream &fin, indexEntry entry);
 
-std::vector<contactRecord>
-straw(const std::string& matrixType, const std::string& norm, const std::string& fname, const std::string& chr1loc, const std::string& chr2loc,
-      const std::string &unit, int32_t binsize);
+std::vector<contactRecord> straw(const std::string &matrixType, const std::string &norm,
+                                 const std::string &fname, const std::string &chr1loc,
+                                 const std::string &chr2loc, const std::string &unit,
+                                 int32_t binsize);
 
-int64_t getNumRecordsForFile(const std::string& filename, int32_t binsize, bool interOnly);
+int64_t getNumRecordsForFile(const std::string &filename, int32_t binsize, bool interOnly);
 
 #endif
