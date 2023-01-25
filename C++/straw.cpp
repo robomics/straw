@@ -62,16 +62,14 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
     assert(userp);
     assert(contents);
     size_t realsize = size * nmemb;
-    auto buffer = *reinterpret_cast<std::string*>(userp);  // NOLINT
+    auto& buffer = *reinterpret_cast<std::string*>(userp);  // NOLINT
     try {
-      buffer.reserve(realsize + 1);
-      buffer.assign(static_cast<const char*>(contents), realsize);
-      buffer.push_back('\0');
-      return buffer.size();
+      buffer.append(static_cast<const char*>(contents), realsize);
     } catch (const std::bad_alloc& e) {
       fprintf(stderr, "%s: out of memory!\n", e.what());
       return 0;
     }
+    return realsize;
 }
 
 // get a buffer that can be used as an input stream from the URL
@@ -80,6 +78,7 @@ void getData(CURL_ptr& curl, int64_t position, int64_t chunksize, std::string& b
     const auto oss = std::to_string(position) + "-" + std::to_string(position + chunksize);
     curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, reinterpret_cast<void *>(&buffer));
     curl_easy_setopt(curl.get(), CURLOPT_RANGE, oss.c_str());
+    buffer.clear();
     CURLcode res = curl_easy_perform(curl.get());
     if (res != CURLE_OK) {
         fprintf(stderr, "curl_easy_perform() failed: %s\n",
