@@ -28,39 +28,41 @@ Copyright (c) 2011-2016 Broad Institute, Aiden Lab
 
 using namespace std;
 
-size_t HiCFile::hdf(char *buffer, size_t size, size_t nitems, void *userdata) {
-    assert(buffer);
-    assert(userdata);
-    size_t numbytes = size * nitems;
-    std::string s(buffer, numbytes);
+std::int64_t HiCFile::readTotalFileSize(const std::string &url) {
+    if (internal::StartsWith(url, "http")) {
+        auto discardData = +[](void *buffer, size_t size, size_t nmemb, void *userp) -> size_t {
+            return size * nmemb;
+        };
 
-    auto &totalFileSize = *reinterpret_cast<std::int64_t *>(userdata);  // NOLINT
-    totalFileSize = 0;
-
-    int32_t found;
-    found = static_cast<int32_t>(s.find("content-range"));
-    if ((size_t)found == string::npos) {
-        found = static_cast<int32_t>(s.find("Content-Range"));
-    }
-    if ((size_t)found != string::npos) {
-        int32_t found2;
-        found2 = static_cast<int32_t>(s.find('/'));
-        // content-range: bytes 0-100000/891471462
-        if ((size_t)found2 != string::npos) {
-            string total = s.substr(found2 + 1);
-            totalFileSize = stol(total);
+        auto curl = internal::CURL_ptr(curl_easy_init(), &curl_easy_cleanup);
+        if (!curl.get()) {
+            throw std::runtime_error("Unable to initialize curl");
         }
+        curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl.get(), CURLOPT_HEADER, 1L);
+        curl_easy_setopt(curl.get(), CURLOPT_NOBODY, 1L);
+        curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, discardData);
+        curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl.get(), CURLOPT_USERAGENT, "straw");
+
+        auto res = curl_easy_perform(curl.get());
+        if (res != CURLE_OK) {
+            throw std::runtime_error("Unable to fetch metadata for " + url + ": " +
+                                     std::string(std::string(curl_easy_strerror(res))));
+        }
+        curl_off_t cl{};
+        res = curl_easy_getinfo(curl.get(), CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl);
+        if (res != CURLE_OK || cl == -1) {
+            const auto reason =
+                res == CURLE_OK ? std::string{} : ": " + std::string(curl_easy_strerror(res));
+            throw std::runtime_error("Unable to fetch content length for " + url + reason);
+        }
+        if (cl == -1) {
+            throw std::runtime_error("Unable to fetch content length for " + url);
+        }
+        return static_cast<std::int64_t>(cl);
     }
-
-    return numbytes;
-}
-
-internal::CURL_ptr HiCFile::oneTimeInitCURL(const std::string &url, std::int64_t &totalFileSize) {
-    auto curl = internal::initCURL(url);
-    curl_easy_setopt(curl.get(), CURLOPT_HEADERFUNCTION, hdf);
-    curl_easy_setopt(curl.get(), CURLOPT_HEADERDATA,
-                     reinterpret_cast<void *>(&totalFileSize));  // NOLINT
-    return curl;
+    return std::ifstream(url, std::ios::binary | std::ios::ate).tellg();
 }
 
 static vector<int32_t> readResolutionsFromHeader(istream &fin) {
@@ -73,28 +75,24 @@ static vector<int32_t> readResolutionsFromHeader(istream &fin) {
     return resolutions;
 }
 
-HiCFile::HiCFile(const string &fileName) {
-    this->fileName = fileName;
-
+HiCFile::HiCFile(string fileName_)
+    : fileName(std::move(fileName_)), totalFileSize(readTotalFileSize(fileName)) {
     // read header into buffer; 100K should be sufficient
     if (internal::StartsWith(fileName, "http")) {
-        auto curl = oneTimeInitCURL(fileName, totalFileSize);
+        auto curl = internal::initCURL(fileName);
         auto buffer = internal::getData(curl, 0, 100000);
         internal::memstream bufin(buffer);
         chromosomes =
             readHeader(bufin, master, genomeID, numChromosomes, version, nviPosition, nviLength);
         resolutions = readResolutionsFromHeader(bufin);
     } else {
-        ifstream fin;
-        fin.open(fileName, fstream::in | fstream::binary);
+        ifstream fin(fileName, fstream::in | fstream::binary);
         if (!fin) {
             throw std::runtime_error("File " + fileName + " cannot be opened for reading");
         }
         chromosomes =
             readHeader(fin, master, genomeID, numChromosomes, version, nviPosition, nviLength);
         resolutions = readResolutionsFromHeader(fin);
-        fin.seekg(std::ios::ate);
-        totalFileSize = fin.tellg();
     }
     assert(totalFileSize != 0);
 }

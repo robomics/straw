@@ -107,9 +107,9 @@ static map<int32_t, indexEntry> readMatrixZoomDataHttp(CURL_ptr &curl, int64_t &
     map<int32_t, indexEntry> blockMap;
     int32_t header_size = 5 * sizeof(int32_t) + 4 * sizeof(float);
     auto buffer = getData(curl, myFilePosition, 1);
-    if (buffer[0] == 'B') {
+    if (buffer.front() == 'B') {
         header_size += 3;
-    } else if (buffer[0] == 'F') {
+    } else if (buffer.front() == 'F') {
         header_size += 5;
     } else {
         throw std::runtime_error("Unit not understood");
@@ -672,7 +672,8 @@ int64_t MatrixZoomData::getNumberOfTotalRecords() {
     return total;
 }
 
-static void rollingMedian(vector<double> &initialValues, vector<double> &finalResult, int32_t window) {
+static void rollingMedian(vector<double> &initialValues, vector<double> &finalResult,
+                          int32_t window) {
     // window is actually a ~wing-span
     if (window < 1) {
         finalResult = initialValues;
@@ -703,7 +704,6 @@ static void rollingMedian(vector<double> &initialValues, vector<double> &finalRe
     */
     finalResult = initialValues;
 }
-
 
 int64_t readThroughExpectedVectorURL(internal::CURL_ptr &curl, int64_t currentPointer,
                                      int32_t version, vector<double> &expectedValues,

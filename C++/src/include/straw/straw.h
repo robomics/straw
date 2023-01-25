@@ -157,6 +157,7 @@ class HiCFile {
     using ChromosomeMap = std::map<std::string, chromosome>;
 
    private:
+    std::string fileName;
     int64_t master = 0LL;
     ChromosomeMap chromosomes;
     std::string genomeID;
@@ -166,10 +167,9 @@ class HiCFile {
     int64_t nviLength = 0LL;
     std::vector<int32_t> resolutions;
     int64_t totalFileSize;
-    std::string fileName;
 
    public:
-    explicit HiCFile(const std::string &fileName);
+    explicit HiCFile(std::string fileName_);
 
     const std::string &getGenomeID() const noexcept;
 
@@ -184,9 +184,7 @@ class HiCFile {
                                                int32_t resolution);
 
    private:
-    static size_t hdf(char *buffer, size_t size, size_t nitems, void *userdata);
-
-    static internal::CURL_ptr oneTimeInitCURL(const std::string &url, std::int64_t &totalFileSize);
+    static std::int64_t readTotalFileSize(const std::string &url);
 
     std::map<std::string, chromosome> readHeader(std::istream &fin, int64_t &masterIndexPosition,
                                                  std::string &genomeID, int32_t &numChromosomes,

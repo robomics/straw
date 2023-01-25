@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
             printf("%d\t%d\t%.14g\n", records[i].binX, records[i].binY, records[i].counts);
         }
     } catch (const std::exception& e) {
-        cerr << "straw encountered the following error: " << e.what() << "\n";
+        cerr << e.what();
         return 1;
     }
 }

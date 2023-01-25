@@ -74,76 +74,91 @@ static void parsePositions(const string &chrLoc, string &chrom, int64_t &pos1, i
 vector<contactRecord> straw(const string &matrixType, const string &norm, const string &fileName,
                             const string &chr1loc, const string &chr2loc, const string &unit,
                             int32_t binsize) {
-    if (!(unit == "BP" || unit == "FRAG")) {
-        throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
-    }
+    try {
+        if (!(unit == "BP" || unit == "FRAG")) {
+            throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
+        }
 
-    HiCFile hiCFile(fileName);
-    const auto &chroms = hiCFile.getChromosomeMap();
-    string chr1, chr2;
-    int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
-    parsePositions(chr1loc, chr1, origRegionIndices[0], origRegionIndices[1], chroms);
-    parsePositions((chr2loc), chr2, origRegionIndices[2], origRegionIndices[3], chroms);
+        HiCFile hiCFile(fileName);
+        const auto &chroms = hiCFile.getChromosomeMap();
+        string chr1, chr2;
+        int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
+        parsePositions(chr1loc, chr1, origRegionIndices[0], origRegionIndices[1], chroms);
+        parsePositions((chr2loc), chr2, origRegionIndices[2], origRegionIndices[3], chroms);
 
-    if (chroms.at(chr1).index > chroms.at(chr2).index) {
-        auto mzd = hiCFile.getMatrixZoomData(chr2, chr1, matrixType, norm, unit, binsize);
-        return mzd.getRecords(origRegionIndices[2], origRegionIndices[3], origRegionIndices[0],
-                              origRegionIndices[1]);
-    } else {
-        auto mzd = hiCFile.getMatrixZoomData(chr1, chr2, matrixType, norm, unit, binsize);
-        return mzd.getRecords(origRegionIndices[0], origRegionIndices[1], origRegionIndices[2],
-                              origRegionIndices[3]);
+        if (chroms.at(chr1).index > chroms.at(chr2).index) {
+            auto mzd = hiCFile.getMatrixZoomData(chr2, chr1, matrixType, norm, unit, binsize);
+            return mzd.getRecords(origRegionIndices[2], origRegionIndices[3], origRegionIndices[0],
+                                  origRegionIndices[1]);
+        } else {
+            auto mzd = hiCFile.getMatrixZoomData(chr1, chr2, matrixType, norm, unit, binsize);
+            return mzd.getRecords(origRegionIndices[0], origRegionIndices[1], origRegionIndices[2],
+                                  origRegionIndices[3]);
+        }
+    } catch (const std::exception &e) {
+        throw std::runtime_error(std::string("straw encountered the following error: ") + e.what());
     }
 }
 
 vector<vector<float> > strawAsMatrix(const string &matrixType, const string &norm,
                                      const string &fileName, const string &chr1loc,
                                      const string &chr2loc, const string &unit, int32_t binsize) {
-    if (!(unit == "BP" || unit == "FRAG")) {
-        throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
-    }
+    try {
+        if (!(unit == "BP" || unit == "FRAG")) {
+            throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
+        }
 
-    HiCFile hiCFile(fileName);
-    const auto &chroms = hiCFile.getChromosomeMap();
-    string chr1, chr2;
-    int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
-    parsePositions(chr1loc, chr1, origRegionIndices[0], origRegionIndices[1], chroms);
-    parsePositions((chr2loc), chr2, origRegionIndices[2], origRegionIndices[3], chroms);
+        HiCFile hiCFile(fileName);
+        const auto &chroms = hiCFile.getChromosomeMap();
+        string chr1, chr2;
+        int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
+        parsePositions(chr1loc, chr1, origRegionIndices[0], origRegionIndices[1], chroms);
+        parsePositions((chr2loc), chr2, origRegionIndices[2], origRegionIndices[3], chroms);
 
-    if (chroms.at(chr1).index > chroms.at(chr2).index) {
-        auto mzd = hiCFile.getMatrixZoomData(chr2, chr1, matrixType, norm, unit, binsize);
-        return mzd.getRecordsAsMatrix(origRegionIndices[2], origRegionIndices[3],
-                                      origRegionIndices[0], origRegionIndices[1]);
+        if (chroms.at(chr1).index > chroms.at(chr2).index) {
+            auto mzd = hiCFile.getMatrixZoomData(chr2, chr1, matrixType, norm, unit, binsize);
+            return mzd.getRecordsAsMatrix(origRegionIndices[2], origRegionIndices[3],
+                                          origRegionIndices[0], origRegionIndices[1]);
 
-    } else {
-        auto mzd = hiCFile.getMatrixZoomData(chr1, chr2, matrixType, norm, unit, binsize);
-        return mzd.getRecordsAsMatrix(origRegionIndices[0], origRegionIndices[1],
-                                      origRegionIndices[2], origRegionIndices[3]);
+        } else {
+            auto mzd = hiCFile.getMatrixZoomData(chr1, chr2, matrixType, norm, unit, binsize);
+            return mzd.getRecordsAsMatrix(origRegionIndices[0], origRegionIndices[1],
+                                          origRegionIndices[2], origRegionIndices[3]);
+        }
+    } catch (const std::exception &e) {
+        throw std::runtime_error(std::string("strawAsMatrix encountered the following error: ") +
+                                 e.what());
     }
 }
 
 int64_t getNumRecordsForFile(const string &fileName, int32_t binsize, bool interOnly) {
-    HiCFile hiCFile(fileName);
-    int64_t totalNumRecords = 0;
+    try {
+        HiCFile hiCFile(fileName);
+        int64_t totalNumRecords = 0;
 
-    int32_t indexOffset = 0;
-    if (interOnly) {
-        indexOffset = 1;
-    }
-
-    vector<chromosome> chromosomes = hiCFile.getChromosomes();
-    for (int32_t i = 0; i < chromosomes.size(); i++) {
-        if (chromosomes[i].index <= 0) continue;
-        for (int32_t j = i + indexOffset; j < chromosomes.size(); j++) {
-            if (chromosomes[j].index <= 0) continue;
-            const auto idx = std::minmax({chromosomes[i].index, chromosomes[j].index});
-            const auto &chrom1 = chromosomes[idx.first].name;
-            const auto &chrom2 = chromosomes[idx.second].name;
-            totalNumRecords +=
-                hiCFile.getMatrixZoomData(chrom1, chrom2, "observed", "NONE", "BP", binsize)
-                    .getNumberOfTotalRecords();
+        int32_t indexOffset = 0;
+        if (interOnly) {
+            indexOffset = 1;
         }
-    }
 
-    return totalNumRecords;
+        vector<chromosome> chromosomes = hiCFile.getChromosomes();
+        for (int32_t i = 0; i < chromosomes.size(); i++) {
+            if (chromosomes[i].index <= 0) continue;
+            for (int32_t j = i + indexOffset; j < chromosomes.size(); j++) {
+                if (chromosomes[j].index <= 0) continue;
+                const auto idx = std::minmax({chromosomes[i].index, chromosomes[j].index});
+                const auto &chrom1 = chromosomes[idx.first].name;
+                const auto &chrom2 = chromosomes[idx.second].name;
+                totalNumRecords +=
+                    hiCFile.getMatrixZoomData(chrom1, chrom2, "observed", "NONE", "BP", binsize)
+                        .getNumberOfTotalRecords();
+            }
+        }
+
+        return totalNumRecords;
+
+    } catch (const std::exception &e) {
+        throw std::runtime_error(
+            std::string("getNumRecordsForFile encountered the following error: ") + e.what());
+    }
 }
