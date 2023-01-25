@@ -49,10 +49,11 @@ inline bool StartsWith(const std::string &s, const std::string &prefix) {
 }
 
 // callback for libcurl. data written to this buffer
-inline size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+inline std::size_t WriteMemoryCallback(void *contents, std::size_t size, std::size_t nmemb,
+                                       void *userp) {
     assert(userp);
     assert(contents);
-    size_t realsize = size * nmemb;
+    std::size_t realsize = size * nmemb;
     auto &buffer = *reinterpret_cast<std::string *>(userp);  // NOLINT
     try {
         buffer.append(static_cast<const char *>(contents), realsize);
@@ -63,7 +64,8 @@ inline size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
 }
 
 // get a buffer that can be used as an input stream from the URL
-inline void getData(CURL_ptr &curl, int64_t position, int64_t chunksize, std::string &buffer) {
+inline void getData(CURL_ptr &curl, std::int64_t position, std::int64_t chunksize,
+                    std::string &buffer) {
     assert(curl);
     const auto oss = std::to_string(position) + "-" + std::to_string(position + chunksize);
     curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, reinterpret_cast<const void *>(&buffer));
@@ -76,7 +78,7 @@ inline void getData(CURL_ptr &curl, int64_t position, int64_t chunksize, std::st
     }
 }
 
-inline std::string getData(CURL_ptr &curl, int64_t position, int64_t chunksize) {
+inline std::string getData(CURL_ptr &curl, std::int64_t position, std::int64_t chunksize) {
     std::string buffer{};
     getData(curl, position, chunksize, buffer);
     return buffer;
@@ -152,11 +154,11 @@ inline std::string readFromFile(std::istream &fin, char delim = '\0') {
 
 inline char readCharFromFile(std::istream &fin) { return readFromFile<char>(fin); }
 
-inline int16_t readInt16FromFile(std::istream &fin) { return readFromFile<int16_t>(fin); }
+inline std::int16_t readInt16FromFile(std::istream &fin) { return readFromFile<std::int16_t>(fin); }
 
-inline int32_t readInt32FromFile(std::istream &fin) { return readFromFile<int32_t>(fin); }
+inline std::int32_t readInt32FromFile(std::istream &fin) { return readFromFile<std::int32_t>(fin); }
 
-inline int64_t readInt64FromFile(std::istream &fin) { return readFromFile<int64_t>(fin); }
+inline std::int64_t readInt64FromFile(std::istream &fin) { return readFromFile<std::int64_t>(fin); }
 
 inline float readFloatFromFile(std::istream &fin) { return readFromFile<float>(fin); }
 
@@ -164,14 +166,14 @@ inline double readDoubleFromFile(std::istream &fin) { return readFromFile<double
 
 template <typename N, typename std::enable_if<std::is_arithmetic<N>::value>::type * = nullptr>
 inline void populateVectorWithNumbers(std::istream &fin, std::vector<double> &buffer,
-                                      int64_t nValues) {
+                                      std::int64_t nValues) {
     buffer.resize(nValues);
     std::generate(buffer.begin(), buffer.end(),
                   [&]() { return static_cast<double>(readFromFile<N>(fin)); });
 }
 
 template <typename N, typename std::enable_if<std::is_arithmetic<N>::value>::type * = nullptr>
-inline std::vector<double> populateVectorWithNumbers(std::istream &fin, int64_t nValues) {
+inline std::vector<double> populateVectorWithNumbers(std::istream &fin, std::int64_t nValues) {
     std::vector<double> buffer(nValues);
     populateVectorWithNumbers<N>(fin, buffer, nValues);
     return buffer;
@@ -179,9 +181,9 @@ inline std::vector<double> populateVectorWithNumbers(std::istream &fin, int64_t 
 
 }  // namespace internal
 
-inline void convertGenomeToBinPos(const int64_t origRegionIndices[4], int64_t regionIndices[4],
-                                  int32_t resolution) {
-    for (uint16_t q = 0; q < 4; q++) {
+inline void convertGenomeToBinPos(const std::int64_t origRegionIndices[4],
+                                  std::int64_t regionIndices[4], std::int32_t resolution) {
+    for (std::uint16_t q = 0; q < 4; q++) {
         // used to find the blocks we need to access
         regionIndices[q] = origRegionIndices[q] / resolution;
     }

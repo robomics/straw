@@ -22,17 +22,26 @@ Copyright (c) 2011-2016 Broad Institute, Aiden Lab
         THE SOFTWARE.
             */
 
+#include <curl/curl.h>
+
 #include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <fstream>
+#include <ios>
+#include <istream>
+#include <map>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
+#include "straw/internal/common.h"
 #include "straw/straw.h"
-
-using namespace std;
 
 std::int64_t HiCFile::readTotalFileSize(const std::string &url) {
     if (internal::StartsWith(url, "http")) {
-        auto discardData = +[](void *buffer, size_t size, size_t nmemb, void *userp) -> size_t {
-            return size * nmemb;
-        };
+        auto discardData = +[](void *buffer, std::size_t size, std::size_t nmemb,
+                               void *userp) -> std::size_t { return size * nmemb; };
 
         auto curl = internal::CURL_ptr(curl_easy_init(), &curl_easy_cleanup);
         if (!curl.get()) {
@@ -48,7 +57,7 @@ std::int64_t HiCFile::readTotalFileSize(const std::string &url) {
         auto res = curl_easy_perform(curl.get());
         if (res != CURLE_OK) {
             throw std::runtime_error("Unable to fetch metadata for " + url + ": " +
-                                     std::string(std::string(curl_easy_strerror(res))));
+                                     std::string(curl_easy_strerror(res)));
         }
         curl_off_t cl{};
         res = curl_easy_getinfo(curl.get(), CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl);
@@ -65,17 +74,17 @@ std::int64_t HiCFile::readTotalFileSize(const std::string &url) {
     return std::ifstream(url, std::ios::binary | std::ios::ate).tellg();
 }
 
-static vector<int32_t> readResolutionsFromHeader(istream &fin) {
+static std::vector<std::int32_t> readResolutionsFromHeader(std::istream &fin) {
     int numBpResolutions = internal::readInt32FromFile(fin);
-    vector<int32_t> resolutions;
+    std::vector<std::int32_t> resolutions;
     for (int i = 0; i < numBpResolutions; i++) {
-        int32_t res = internal::readInt32FromFile(fin);
+        std::int32_t res = internal::readInt32FromFile(fin);
         resolutions.push_back(res);
     }
     return resolutions;
 }
 
-HiCFile::HiCFile(string fileName_)
+HiCFile::HiCFile(std::string fileName_)
     : fileName(std::move(fileName_)), totalFileSize(readTotalFileSize(fileName)) {
     // read header into buffer; 100K should be sufficient
     if (internal::StartsWith(fileName, "http")) {
@@ -86,7 +95,7 @@ HiCFile::HiCFile(string fileName_)
             readHeader(bufin, master, genomeID, numChromosomes, version, nviPosition, nviLength);
         resolutions = readResolutionsFromHeader(bufin);
     } else {
-        ifstream fin(fileName, fstream::in | fstream::binary);
+        std::ifstream fin(fileName, std::ios::in | std::ios::binary);
         if (!fin) {
             throw std::runtime_error("File " + fileName + " cannot be opened for reading");
         }
@@ -97,11 +106,11 @@ HiCFile::HiCFile(string fileName_)
     assert(totalFileSize != 0);
 }
 
-const string &HiCFile::getGenomeID() const noexcept { return genomeID; }
+const std::string &HiCFile::getGenomeID() const noexcept { return genomeID; }
 
-const vector<int32_t> &HiCFile::getResolutions() const noexcept { return resolutions; }
+const std::vector<std::int32_t> &HiCFile::getResolutions() const noexcept { return resolutions; }
 
-vector<chromosome> HiCFile::getChromosomes() const {
+std::vector<chromosome> HiCFile::getChromosomes() const {
     std::vector<chromosome> flat_chroms(chromosomes.size());
     for (const auto &node : chromosomes) {
         flat_chroms[node.second.index] = node.second;
@@ -112,9 +121,9 @@ vector<chromosome> HiCFile::getChromosomes() const {
 
 auto HiCFile::getChromosomeMap() const noexcept -> const ChromosomeMap & { return chromosomes; }
 
-internal::MatrixZoomData HiCFile::getMatrixZoomData(const string &chr1, const string &chr2,
-                                                    const string &matrixType, const string &norm,
-                                                    const string &unit, int32_t resolution) {
+internal::MatrixZoomData HiCFile::getMatrixZoomData(
+    const std::string &chr1, const std::string &chr2, const std::string &matrixType,
+    const std::string &norm, const std::string &unit, std::int32_t resolution) {
     chromosome chrom1 = chromosomes[chr1];
     chromosome chrom2 = chromosomes[chr2];
     return {chrom1,     chrom2,  (matrixType), (norm),        (unit),
@@ -123,13 +132,13 @@ internal::MatrixZoomData HiCFile::getMatrixZoomData(const string &chr1, const st
 
 // reads the header, storing the positions of the normalization vectors and returning the
 // masterIndexPosition pointer
-map<string, chromosome> HiCFile::readHeader(istream &fin, int64_t &masterIndexPosition,
-                                            string &genomeID, int32_t &numChromosomes,
-                                            int32_t &version, int64_t &nviPosition,
-                                            int64_t &nviLength) {
-    map<string, chromosome> chromosomeMap;
+auto HiCFile::readHeader(std::istream &fin, std::int64_t &masterIndexPosition,
+                         std::string &genomeID, std::int32_t &numChromosomes, std::int32_t &version,
+                         std::int64_t &nviPosition, std::int64_t &nviLength) -> ChromosomeMap {
+    std::map<std::string, chromosome> chromosomeMap;
     if (!internal::checkMagicString(fin)) {
-        throw std::runtime_error("Hi-C magic string is missing, does not appear to be a hic file");
+        throw std::runtime_error(
+            "Hi-C magic std::string is missing, does not appear to be a hic file");
     }
 
     version = internal::readInt32FromFile(fin);
@@ -144,11 +153,11 @@ map<string, chromosome> HiCFile::readHeader(istream &fin, int64_t &masterIndexPo
         nviLength = internal::readInt64FromFile(fin);
     }
 
-    int32_t nattributes = internal::readInt32FromFile(fin);
+    std::int32_t nattributes = internal::readInt32FromFile(fin);
 
     // reading and ignoring attribute-value dictionary
     for (int i = 0; i < nattributes; i++) {
-        string key, value;
+        std::string key, value;
         getline(fin, key, '\0');
         getline(fin, value, '\0');
     }
@@ -156,13 +165,13 @@ map<string, chromosome> HiCFile::readHeader(istream &fin, int64_t &masterIndexPo
     numChromosomes = internal::readInt32FromFile(fin);
     // chromosome map for finding matrixType
     for (int i = 0; i < numChromosomes; i++) {
-        string name;
-        int64_t length;
+        std::string name;
+        std::int64_t length;
         getline(fin, name, '\0');
         if (version > 8) {
             length = internal::readInt64FromFile(fin);
         } else {
-            length = (int64_t)internal::readInt32FromFile(fin);
+            length = (std::int64_t)internal::readInt32FromFile(fin);
         }
 
         chromosome chr;

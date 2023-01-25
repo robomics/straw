@@ -40,8 +40,6 @@
 #include <utility>
 #include <vector>
 
-using namespace std;
-
 /*
   Straw: fast C++ implementation of dump. Not as fully featured as the
   Java version. Reads the .hic file, finds the appropriate matrix and slice
@@ -53,10 +51,10 @@ using namespace std;
   <chr2>[:y1:y2] <BP/FRAG> <binsize>
  */
 
-static void parsePositions(const string &chrLoc, string &chrom, int64_t &pos1, int64_t &pos2,
-                           const HiCFile::ChromosomeMap &map) {
-    string x, y;
-    stringstream ss(chrLoc);
+static void parsePositions(const std::string &chrLoc, std::string &chrom, std::int64_t &pos1,
+                           std::int64_t &pos2, const HiCFile::ChromosomeMap &map) {
+    std::string x, y;
+    std::stringstream ss(chrLoc);
     getline(ss, chrom, ':');
     if (map.count(chrom) == 0) {
         throw std::runtime_error(chrom + " not found in the file");
@@ -71,9 +69,10 @@ static void parsePositions(const string &chrLoc, string &chrom, int64_t &pos1, i
     }
 }
 
-vector<contactRecord> straw(const string &matrixType, const string &norm, const string &fileName,
-                            const string &chr1loc, const string &chr2loc, const string &unit,
-                            int32_t binsize) {
+std::vector<contactRecord> straw(const std::string &matrixType, const std::string &norm,
+                                 const std::string &fileName, const std::string &chr1loc,
+                                 const std::string &chr2loc, const std::string &unit,
+                                 std::int32_t binsize) {
     try {
         if (!(unit == "BP" || unit == "FRAG")) {
             throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
@@ -81,8 +80,8 @@ vector<contactRecord> straw(const string &matrixType, const string &norm, const 
 
         HiCFile hiCFile(fileName);
         const auto &chroms = hiCFile.getChromosomeMap();
-        string chr1, chr2;
-        int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
+        std::string chr1, chr2;
+        std::int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
         parsePositions(chr1loc, chr1, origRegionIndices[0], origRegionIndices[1], chroms);
         parsePositions((chr2loc), chr2, origRegionIndices[2], origRegionIndices[3], chroms);
 
@@ -100,9 +99,11 @@ vector<contactRecord> straw(const string &matrixType, const string &norm, const 
     }
 }
 
-vector<vector<float> > strawAsMatrix(const string &matrixType, const string &norm,
-                                     const string &fileName, const string &chr1loc,
-                                     const string &chr2loc, const string &unit, int32_t binsize) {
+std::vector<std::vector<float> > strawAsMatrix(const std::string &matrixType,
+                                               const std::string &norm, const std::string &fileName,
+                                               const std::string &chr1loc,
+                                               const std::string &chr2loc, const std::string &unit,
+                                               std::int32_t binsize) {
     try {
         if (!(unit == "BP" || unit == "FRAG")) {
             throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
@@ -110,8 +111,8 @@ vector<vector<float> > strawAsMatrix(const string &matrixType, const string &nor
 
         HiCFile hiCFile(fileName);
         const auto &chroms = hiCFile.getChromosomeMap();
-        string chr1, chr2;
-        int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
+        std::string chr1, chr2;
+        std::int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
         parsePositions(chr1loc, chr1, origRegionIndices[0], origRegionIndices[1], chroms);
         parsePositions((chr2loc), chr2, origRegionIndices[2], origRegionIndices[3], chroms);
 
@@ -131,20 +132,21 @@ vector<vector<float> > strawAsMatrix(const string &matrixType, const string &nor
     }
 }
 
-int64_t getNumRecordsForFile(const string &fileName, int32_t binsize, bool interOnly) {
+std::int64_t getNumRecordsForFile(const std::string &fileName, std::int32_t binsize,
+                                  bool interOnly) {
     try {
         HiCFile hiCFile(fileName);
-        int64_t totalNumRecords = 0;
+        std::int64_t totalNumRecords = 0;
 
-        int32_t indexOffset = 0;
+        std::int32_t indexOffset = 0;
         if (interOnly) {
             indexOffset = 1;
         }
 
-        vector<chromosome> chromosomes = hiCFile.getChromosomes();
-        for (int32_t i = 0; i < chromosomes.size(); i++) {
+        std::vector<chromosome> chromosomes = hiCFile.getChromosomes();
+        for (std::int32_t i = 0; i < chromosomes.size(); i++) {
             if (chromosomes[i].index <= 0) continue;
-            for (int32_t j = i + indexOffset; j < chromosomes.size(); j++) {
+            for (std::int32_t j = i + indexOffset; j < chromosomes.size(); j++) {
                 if (chromosomes[j].index <= 0) continue;
                 const auto idx = std::minmax({chromosomes[i].index, chromosomes[j].index});
                 const auto &chrom1 = chromosomes[idx.first].name;

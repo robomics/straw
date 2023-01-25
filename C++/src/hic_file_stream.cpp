@@ -26,6 +26,7 @@ persons to whom the Software is furnished to do so, subject to the following con
 
 #include <cassert>
 #include <fstream>
+#include <ios>
 #include <stdexcept>
 #include <string>
 
@@ -33,9 +34,8 @@ persons to whom the Software is furnished to do so, subject to the following con
 #include "straw/straw.h"
 
 namespace internal {
-using namespace std;
 
-HiCFileStream::HiCFileStream(const string &fileName)
+HiCFileStream::HiCFileStream(const std::string &fileName)
     : fin_(initRegularFile(fileName)), curl_(initRemoteFile(fileName)) {}
 
 bool HiCFileStream::isLocal() const noexcept { return !curl_; }
@@ -59,7 +59,7 @@ void HiCFileStream::readCompressedBytes(indexEntry idx, std::string &buffer) {
     if (isRemote()) {
         getData(curl_, idx.position, idx.size, buffer);
     } else {
-        fin_.seekg(idx.position, ios::beg);
+        fin_.seekg(idx.position, std::ios::beg);
         buffer.resize(idx.size);
         fin_.read(&buffer.front(), idx.size);
     }
@@ -87,7 +87,7 @@ std::ifstream HiCFileStream::initRegularFile(const std::string &path) {
         if (StartsWith(path, "http")) {
             return {};
         }
-        std::ifstream ifs(path, fstream::in | fstream::binary);
+        std::ifstream ifs(path, std::ios::in | std::ios::binary);
         ifs.exceptions(ifs.exceptions() | std::ios::badbit | std::ios::failbit);
         return ifs;
     } catch (const std::exception &e) {

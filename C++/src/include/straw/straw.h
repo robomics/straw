@@ -37,22 +37,22 @@
 
 // pointer structure for reading blocks or matrices, holds the size and position
 struct indexEntry {
-    int64_t size;
-    int64_t position;
+    std::int64_t size;
+    std::int64_t position;
 };
 
 // sparse matrixType entry
 struct contactRecord {
-    int32_t binX;
-    int32_t binY;
+    std::int32_t binX;
+    std::int32_t binY;
     float counts;
 };
 
 // chromosome
 struct chromosome {
     std::string name;
-    int32_t index;
-    int64_t length;
+    std::int32_t index;
+    std::int64_t length;
 };
 
 namespace internal {
@@ -87,62 +87,62 @@ class HiCFileStream {
 class MatrixZoomData {
     bool isIntra;
     std::string fileName;
-    int64_t myFilePos = 0LL;
+    std::int64_t myFilePos = 0LL;
     std::vector<double> expectedValues;
     std::vector<double> c1Norm;
     std::vector<double> c2Norm;
-    int32_t c1 = 0;
-    int32_t c2 = 0;
+    std::int32_t c1 = 0;
+    std::int32_t c2 = 0;
     std::string matrixType;
     std::string norm;
-    int32_t version = 0;
-    int32_t resolution = 0;
-    int32_t numBins1 = 0;
-    int32_t numBins2 = 0;
+    std::int32_t version = 0;
+    std::int32_t resolution = 0;
+    std::int32_t numBins1 = 0;
+    std::int32_t numBins2 = 0;
     float sumCounts;
-    int32_t blockBinCount, blockColumnCount;
-    std::map<int32_t, indexEntry> blockMap;
+    std::int32_t blockBinCount, blockColumnCount;
+    std::map<std::int32_t, indexEntry> blockMap;
     double avgCount;
 
    public:
     MatrixZoomData(const chromosome &chrom1, const chromosome &chrom2,
                    const std::string &matrixType, const std::string &norm, const std::string &unit,
-                   int32_t resolution, int32_t &version, int64_t &master, int64_t &totalFileSize,
+                   std::int32_t resolution, std::int32_t &version, std::int64_t &master, std::int64_t &totalFileSize,
                    const std::string &fileName);
 
-    std::vector<contactRecord> getRecords(int64_t gx0, int64_t gx1, int64_t gy0, int64_t gy1);
+    std::vector<contactRecord> getRecords(std::int64_t gx0, std::int64_t gx1, std::int64_t gy0, std::int64_t gy1);
 
-    std::vector<std::vector<float>> getRecordsAsMatrix(int64_t gx0, int64_t gx1, int64_t gy0,
-                                                       int64_t gy1);
+    std::vector<std::vector<float>> getRecordsAsMatrix(std::int64_t gx0, std::int64_t gx1, std::int64_t gy0,
+                                                       std::int64_t gy1);
 
-    int64_t getNumberOfTotalRecords();
+    std::int64_t getNumberOfTotalRecords();
 
    private:
     static std::vector<double> readNormalizationVectorFromFooter(indexEntry cNormEntry,
-                                                                 int32_t &version,
+                                                                 std::int32_t &version,
                                                                  const std::string &fileName);
 
-    static bool isInRange(int32_t r, int32_t c, int32_t numRows, int32_t numCols);
+    static bool isInRange(std::int32_t r, std::int32_t c, std::int32_t numRows, std::int32_t numCols);
 
-    std::set<int32_t> getBlockNumbers(int64_t *regionIndices) const;
+    std::set<std::int32_t> getBlockNumbers(std::int64_t *regionIndices) const;
 
-    std::vector<double> getNormVector(int32_t index);
+    std::vector<double> getNormVector(std::int32_t index);
 
     std::vector<double> getExpectedValues();
 };
 
-void readFooter(std::istream &fin, int64_t master, int32_t version, int32_t c1, int32_t c2,
+void readFooter(std::istream &fin, std::int64_t master, std::int32_t version, std::int32_t c1, std::int32_t c2,
                 const std::string &matrixType, const std::string &norm, const std::string &unit,
-                int32_t resolution, int64_t &myFilePos, indexEntry &c1NormEntry,
+                std::int32_t resolution, std::int64_t &myFilePos, indexEntry &c1NormEntry,
                 indexEntry &c2NormEntry, std::vector<double> &expectedValues);
 
 // reads the footer from the master pointer location. takes in the chromosomes,
 // norm, unit (BP or FRAG) and resolution or binsize, and sets the file
 // position of the matrix and the normalization vectors for those chromosomes
 // at the given normalization and resolution
-void readFooterURL(CURL_ptr &curl, int64_t master, int32_t version, int32_t c1, int32_t c2,
+void readFooterURL(CURL_ptr &curl, std::int64_t master, std::int32_t version, std::int32_t c1, std::int32_t c2,
                    const std::string &matrixType, const std::string &norm, const std::string &unit,
-                   int32_t resolution, int64_t &myFilePos, indexEntry &c1NormEntry,
+                   std::int32_t resolution, std::int64_t &myFilePos, indexEntry &c1NormEntry,
                    indexEntry &c2NormEntry, std::vector<double> &expectedValues);
 
 // TODO remove me!
@@ -158,22 +158,22 @@ class HiCFile {
 
    private:
     std::string fileName;
-    int64_t master = 0LL;
+    std::int64_t master = 0LL;
     ChromosomeMap chromosomes;
     std::string genomeID;
-    int32_t numChromosomes = 0;
-    int32_t version = 0;
-    int64_t nviPosition = 0LL;
-    int64_t nviLength = 0LL;
-    std::vector<int32_t> resolutions;
-    int64_t totalFileSize;
+    std::int32_t numChromosomes = 0;
+    std::int32_t version = 0;
+    std::int64_t nviPosition = 0LL;
+    std::int64_t nviLength = 0LL;
+    std::vector<std::int32_t> resolutions;
+    std::int64_t totalFileSize;
 
    public:
     explicit HiCFile(std::string fileName_);
 
     const std::string &getGenomeID() const noexcept;
 
-    const std::vector<int32_t> &getResolutions() const noexcept;
+    const std::vector<std::int32_t> &getResolutions() const noexcept;
 
     std::vector<chromosome> getChromosomes() const;
     auto getChromosomeMap() const noexcept -> const ChromosomeMap &;
@@ -181,29 +181,28 @@ class HiCFile {
     internal::MatrixZoomData getMatrixZoomData(const std::string &chr1, const std::string &chr2,
                                                const std::string &matrixType,
                                                const std::string &norm, const std::string &unit,
-                                               int32_t resolution);
+                                               std::int32_t resolution);
 
    private:
     static std::int64_t readTotalFileSize(const std::string &url);
 
-    std::map<std::string, chromosome> readHeader(std::istream &fin, int64_t &masterIndexPosition,
-                                                 std::string &genomeID, int32_t &numChromosomes,
-                                                 int32_t &version, int64_t &nviPosition,
-                                                 int64_t &nviLength);
+    auto readHeader(std::istream &fin, std::int64_t &masterIndexPosition, std::string &genomeID,
+                    std::int32_t &numChromosomes, std::int32_t &version, std::int64_t &nviPosition,
+                    std::int64_t &nviLength) -> ChromosomeMap;
 };
 
-std::map<int32_t, indexEntry> readMatrixZoomData(std::istream &fin, const std::string &myunit,
-                                                 int32_t mybinsize, float &mySumCounts,
-                                                 int32_t &myBlockBinCount,
-                                                 int32_t &myBlockColumnCount, bool &found);
+std::map<std::int32_t, indexEntry> readMatrixZoomData(std::istream &fin, const std::string &myunit,
+                                                 std::int32_t mybinsize, float &mySumCounts,
+                                                 std::int32_t &myBlockBinCount,
+                                                 std::int32_t &myBlockColumnCount, bool &found);
 
 std::vector<double> readNormalizationVector(std::istream &fin, indexEntry entry);
 
 std::vector<contactRecord> straw(const std::string &matrixType, const std::string &norm,
                                  const std::string &fname, const std::string &chr1loc,
                                  const std::string &chr2loc, const std::string &unit,
-                                 int32_t binsize);
+                                 std::int32_t binsize);
 
-int64_t getNumRecordsForFile(const std::string &filename, int32_t binsize, bool interOnly);
+std::int64_t getNumRecordsForFile(const std::string &filename, std::int32_t binsize, bool interOnly);
 
 #endif

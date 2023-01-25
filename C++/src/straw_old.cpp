@@ -1,0 +1,171 @@
+/*
+  The MIT License (MIT)
+
+  Copyright (c) 2017-2021 Aiden Lab, Rice University, Baylor College of Medicine
+
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+*/
+#include <zlib.h>
+
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstring>
+#include <iostream>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <std::fstream>
+#include <streambuf>
+#include <utility>
+#include <vector>
+
+#include "straw/straw.h"
+
+using namespace std;
+
+/*
+  Straw: fast C++ implementation of dump. Not as fully featured as the
+  Java version. Reads the .hic file, finds the appropriate matrix and slice
+  of data, and outputs as text in sparse upper triangular format.
+
+  Currently only supporting matrices.
+
+  Usage: straw [observed/oe/expected] <NONE/VC/VC_SQRT/KR> <hicFile(s)> <chr1>[:x1:x2]
+  <chr2>[:y1:y2] <BP/FRAG> <binsize>
+ */
+
+// https://www.techiedelight.com/get-slice-sub-vector-from-vector-cpp/
+std::vector<double> sliceVector(std::vector<double> &v, std::int64_t m, std::int64_t n) {
+    std::vector<double> vec;
+    copy(v.begin() + m, v.begin() + n + 1, back_inserter(vec));
+    return vec;
+}
+
+// assume always an odd number for length of vector;
+// eve if even, this calculation should be close enough
+double getMedian(std::vector<double> &v) {
+    std::size_t n = v.size() / 2;
+    nth_element(v.begin(), v.begin() + n, v.end());
+    return v[n];
+}
+
+std::int64_t HiCFile::totalFileSize = 0LL;
+
+void parsePositions(const std::string &chrLoc, std::string &chrom, std::int64_t &pos1,
+                    std::int64_t &pos2, map<std::string, chromosome> map) {
+    std::string x, y;
+    stringstream ss(chrLoc);
+    getline(ss, chrom, ':');
+    if (map.count(chrom) == 0) {
+        throw std::runtime_error(chrom + " not found in the file");
+    }
+
+    if (getline(ss, x, ':') && getline(ss, y, ':')) {
+        pos1 = stol(x);
+        pos2 = stol(y);
+    } else {
+        pos1 = 0LL;
+        pos2 = map[chrom].length;
+    }
+}
+
+std::vector<contactRecord> straw(const std::string &matrixType, const std::string &norm,
+                                 const std::string &fileName, const std::string &chr1loc,
+                                 const std::string &chr2loc, const std::string &unit,
+                                 std::int32_t binsize) {
+    if (!(unit == "BP" || unit == "FRAG")) {
+        throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
+    }
+
+    HiCFile hiCFile(fileName);
+    std::string chr1, chr2;
+    std::int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
+    parsePositions((chr1loc), chr1, origRegionIndices[0], origRegionIndices[1],
+                   hiCFile.chromosomeMap);
+    parsePositions((chr2loc), chr2, origRegionIndices[2], origRegionIndices[3],
+                   hiCFile.chromosomeMap);
+
+    if (hiCFile.chromosomeMap[chr1].index > hiCFile.chromosomeMap[chr2].index) {
+        auto mzd = hiCFile.getMatrixZoomData(chr2, chr1, matrixType, norm, unit, binsize);
+        return mzd.getRecords(origRegionIndices[2], origRegionIndices[3], origRegionIndices[0],
+                              origRegionIndices[1]);
+    } else {
+        auto mzd = hiCFile.getMatrixZoomData(chr1, chr2, matrixType, norm, unit, binsize);
+        return mzd.getRecords(origRegionIndices[0], origRegionIndices[1], origRegionIndices[2],
+                              origRegionIndices[3]);
+    }
+}
+
+std::vector<std::vector<float> > strawAsMatrix(const std::string &matrixType,
+                                               const std::string &norm, const std::string &fileName,
+                                               const std::string &chr1loc,
+                                               const std::string &chr2loc, const std::string &unit,
+                                               std::int32_t binsize) {
+    if (!(unit == "BP" || unit == "FRAG")) {
+        throw std::runtime_error("Norm specified incorrectly, must be one of <BP/FRAG>");
+    }
+
+    HiCFile *hiCFile = new HiCFile(fileName);
+    std::string chr1, chr2;
+    std::int64_t origRegionIndices[4] = {-100LL, -100LL, -100LL, -100LL};
+    parsePositions((chr1loc), chr1, origRegionIndices[0], origRegionIndices[1],
+                   hiCFile->chromosomeMap);
+    parsePositions((chr2loc), chr2, origRegionIndices[2], origRegionIndices[3],
+                   hiCFile->chromosomeMap);
+
+    if (hiCFile->chromosomeMap[chr1].index > hiCFile->chromosomeMap[chr2].index) {
+        auto mzd = hiCFile->getMatrixZoomData(chr2, chr1, matrixType, norm, unit, binsize);
+        return mzd.getRecordsAsMatrix(origRegionIndices[2], origRegionIndices[3],
+                                      origRegionIndices[0], origRegionIndices[1]);
+    } else {
+        auto mzd = hiCFile->getMatrixZoomData(chr1, chr2, matrixType, norm, unit, binsize);
+        return mzd.getRecordsAsMatrix(origRegionIndices[0], origRegionIndices[1],
+                                      origRegionIndices[2], origRegionIndices[3]);
+    }
+}
+
+std::int64_t getNumRecordsForFile(const std::string &fileName, std::int32_t binsize,
+                                  bool interOnly) {
+    HiCFile hiCFile(fileName);
+    std::int64_t totalNumRecords = 0;
+
+    std::int32_t indexOffset = 0;
+    if (interOnly) {
+        indexOffset = 1;
+    }
+
+    std::vector<chromosome> chromosomes = hiCFile.getChromosomes();
+    for (std::int32_t i = 0; i < chromosomes.size(); i++) {
+        if (chromosomes[i].index <= 0) continue;
+        for (std::int32_t j = i + indexOffset; j < chromosomes.size(); j++) {
+            if (chromosomes[j].index <= 0) continue;
+            const auto idx = std::minmax({chromosomes[i].index, chromosomes[j].index});
+            const auto &chrom1 = chromosomes[idx.first].name;
+            const auto &chrom2 = chromosomes[idx.second].name;
+            totalNumRecords +=
+                hiCFile.getMatrixZoomData(chrom1, chrom2, "observed", "NONE", "BP", binsize)
+                    .getNumberOfTotalRecords();
+        }
+    }
+
+    return totalNumRecords;
+}
