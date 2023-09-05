@@ -1396,11 +1396,9 @@ public:
         int64_t endC = regionIndices[3];
         int32_t numRows = endR - originR + 1;
         int32_t numCols = endC - originC + 1;
-        float matrix[numRows][numCols];
-        for(int32_t r = 0; r < numRows; r++){
-            for(int32_t c = 0; c < numCols; c++){
-                matrix[r][c] = 0;
-            }
+        vector<vector<float> > matrix;
+        for (int32_t i = 0; i < numRows; i++) {
+            matrix.emplace_back(numCols, 0);
         }
 
         for (contactRecord cr : records) {
@@ -1418,17 +1416,7 @@ public:
                 }
             }
         }
-
-        vector<vector<float> > finalMatrix;
-        for (int32_t i = 0; i < numRows; i++) {
-            vector<float> row;
-            row.reserve(numCols);
-            for (int32_t j = 0; j < numCols; j++) {
-                row.push_back(matrix[i][j]);
-            }
-            finalMatrix.push_back(row);
-        }
-        return finalMatrix;
+        return matrix;
     }
 
     int64_t getNumberOfTotalRecords() {
@@ -1556,7 +1544,7 @@ void parsePositions(const string &chrLoc, string &chrom, int64_t &pos1, int64_t 
     stringstream ss(chrLoc);
     getline(ss, chrom, ':');
     if (map.count(chrom) == 0) {
-        cerr << chrom << " not found in the file." << endl;
+        cerr << "chromosome " << chrom << " not found in the file." << endl;
         exit(7);
     }
 
@@ -1641,4 +1629,17 @@ int64_t getNumRecordsForFile(const string &fileName, int32_t binsize, bool inter
     }
 
     return totalNumRecords;
+}
+
+int64_t getNumRecordsForChromosomes(const string &fileName, int32_t binsize, bool interOnly) {
+    HiCFile *hiCFile = new HiCFile(fileName);
+    vector<chromosome> chromosomes = hiCFile->getChromosomes();
+    for(int32_t i = 0; i < chromosomes.size(); i++){
+        if(chromosomes[i].index <= 0) continue;
+        MatrixZoomData *mzd = hiCFile->getMatrixZoomData(chromosomes[i].name, chromosomes[i].name, "observed", "NONE", "BP", binsize);
+        int64_t totalNumRecords = mzd->getNumberOfTotalRecords();
+        cout << chromosomes[i].name << " " << totalNumRecords << " ";
+        cout << totalNumRecords*12/1000/1000/1000 << " GB" << endl;
+    }
+    return 0;
 }
