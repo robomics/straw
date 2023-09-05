@@ -28,33 +28,46 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
+  try {
     if (argc != 7 && argc != 8) {
-        cerr << "Incorrect arguments" << endl;
-        cerr << "Usage: straw [observed/oe/expected] <NONE/VC/VC_SQRT/KR> <hicFile(s)> <chr1>[:x1:x2] <chr2>[:y1:y2] <BP/FRAG> <binsize>" << endl;
-        return 1;
-    }
-    try {
-      int offset = 0;
-      string matrixType = "observed";
-      if(argc == 8){
-          offset = 1;
-          matrixType = argv[1];
-      }
-      string norm = argv[1 + offset];
-      string fname = argv[2 + offset];
-      string chr1loc = argv[3 + offset];
-      string chr2loc = argv[4 + offset];
-      string unit = argv[5 + offset];
-      string size = argv[6 + offset];
-      int32_t binsize = stoi(size);
-      vector<contactRecord> records;
-      records = straw(matrixType, norm, fname, chr1loc, chr2loc, unit, binsize);
-      size_t length = records.size();
-      for (int i = 0; i < length; i++) {
-          printf("%d\t%d\t%.14g\n", records[i].binX, records[i].binY, records[i].counts);
-      }   
-    } catch (const std::exception& e) {
-      cerr << "straw encountered the following error: " << e.what() << "\n";
+      cerr << "Incorrect arguments" << endl;
+      cerr << "Usage: straw [observed/oe/expected] <NONE/VC/VC_SQRT/KR> <hicFile(s)> <chr1>[:x1:x2] <chr2>[:y1:y2] <BP/FRAG/MATRIX> <binsize>" << endl;
       return 1;
     }
+    int offset = 0;
+    string matrixType = "observed";
+    if(argc == 8){
+      offset = 1;
+      matrixType = argv[1];
+    }
+    string norm = argv[1 + offset];
+    string fname = argv[2 + offset];
+    string chr1loc = argv[3 + offset];
+    string chr2loc = argv[4 + offset];
+    string unit = argv[5 + offset];
+    string size = argv[6 + offset];
+    int32_t binsize = stoi(size);
+
+    if(unit == "MATRIX"){
+      vector<vector<float>> matrix = strawAsMatrix(matrixType, norm, fname, chr1loc, chr2loc, "BP", binsize);
+      for(int i = 0; i < matrix.size(); i++){
+        for(int j = 0; j < matrix[i].size(); j++){
+          cout << matrix[i][j] << "\t";
+        }
+        cout << endl;
+      }
+    } else {
+      vector<contactRecord> records;
+      records = straw(matrixType, norm, fname, chr1loc, chr2loc, unit, binsize);
+      for (int i = 0; i < records.size(); i++) {
+        printf("%d\t%d\t%.14g\n", records[i].binX, records[i].binY, records[i].counts);
+      }
+    }
+  } catch (const std::exception& e) {
+    cerr << "straw encountered the following error: " << e.what() << "\n";
+    return 1;
+  } catch (...) {
+    cerr << "straw encountered an unknown error\n";
+    return 1;
+  }
 }
