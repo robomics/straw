@@ -1439,7 +1439,7 @@ public:
     int64_t nviPosition = 0LL;
     int64_t nviLength = 0LL;
     vector<int32_t> resolutions;
-    static int64_t totalFileSize;
+    int64_t totalFileSize = 0;
     string fileName;
 
     static size_t hdf(char *b, size_t size, size_t nitems, void *userdata) {
@@ -1457,6 +1457,7 @@ public:
             //content-range: bytes 0-100000/891471462
             if ((size_t) found2 != string::npos) {
                 string total = s.substr(found2 + 1);
+                auto& totalFileSize = *reinterpret_cast<int64_t*>(userdata);
                 totalFileSize = stol(total);
             }
         }
@@ -1464,9 +1465,10 @@ public:
         return numbytes;
     }
 
-    static CURL *oneTimeInitCURL(const char *url) {
+    static CURL *oneTimeInitCURL(const char *url, int64_t* totalFileSizePtr) {
         CURL *curl = initCURL(url);
         curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, hdf);
+        curl_easy_setopt(curl, CURLOPT_HEADERDATA, static_cast<void*>(totalFileSizePtr));
         return curl;
     }
 
@@ -1476,7 +1478,7 @@ public:
         // read header into buffer; 100K should be sufficient
         if (std::strncmp(fileName.c_str(), prefix.c_str(), prefix.size()) == 0) {
             CURL *curl;
-            curl = oneTimeInitCURL(fileName.c_str());
+            curl = oneTimeInitCURL(fileName.c_str(), &totalFileSize);
             char *buffer = getData(curl, 0, 100000);
             memstream bufin(buffer, 100000);
             chromosomeMap = readHeader(bufin, master, genomeID, numChromosomes,
@@ -1531,8 +1533,6 @@ public:
                                   resolution, version, master, totalFileSize, fileName);
     }
 };
-
-int64_t HiCFile::totalFileSize = 0LL;
 
 void parsePositions(const string &chrLoc, string &chrom, int64_t &pos1, int64_t &pos2, map<string, chromosome> map) {
     string x, y;
