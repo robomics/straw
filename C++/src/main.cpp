@@ -23,7 +23,7 @@
 */
 #include <iostream>
 #include <string>
-#include "straw.h"
+#include "straw/straw.h"
 using namespace std;
 
 int main(int argc, char *argv[])

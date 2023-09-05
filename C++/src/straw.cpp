@@ -34,8 +34,8 @@
 #include <curl/curl.h>
 #include <iterator>
 #include <algorithm>
-#include "zlib.h"
-#include "straw.h"
+#include <zlib.h>
+#include "straw/straw.h"
 
 using namespace std;
 
